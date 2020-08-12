@@ -1,0 +1,2 @@
+requests~=2.24.0
+aiothhp~=3.6.2
