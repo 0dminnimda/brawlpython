@@ -1,3 +1,4 @@
+from brawlpython import __version__
 from setuptools import find_packages, setup
 
 
@@ -9,7 +10,7 @@ with open("requirements.txt", "r") as file:
 
 setup(
     name="brawlpython",
-    version="1.0.1",
+    version=__version__,
     description="Easy-to-configure library to use any Brawl Stars API",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -19,18 +20,18 @@ setup(
     packages=find_packages(),
     classifiers=[
         "Development Status :: 1 - Planning",
-        "Programming Language :: Python :: 3.8",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
         "Framework :: AsyncIO",
         "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.8",
         "Natural Language :: English",
         "Topic :: Games/Entertainment :: Real Time Strategy",
         "Topic :: Internet :: WWW/HTTP :: Session",
         "Topic :: Utilities",
-        # "Typing :: Typed",
+        "Typing :: Typed",
     ],
-    license="License :: OSI Approved :: MIT License",
+    license="MIT License",
     keywords=(
         "brawl stars, brawl stars api, brawlstars,"
         "supercell, brawl, stars, api,"
