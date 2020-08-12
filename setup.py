@@ -43,7 +43,9 @@ setup(
         # "Documentation": "Coming soon",
         # "Funding": "Haven\'t done yet :(",
         "Say Thanks!": "https://saythanks.io/to/0dminnimda%40gmail.com",
-        "Source": github_link,
+        #"Source": github_link,
+        # as long as the `url` parameter does not differ from
+        # `project_urls["Source"]`, the latter is meaningless
         "Bug tracker": github_link + "/issues",
     },
     install_requires=requirements,
