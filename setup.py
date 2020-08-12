@@ -31,7 +31,7 @@ setup(
         "Topic :: Utilities",
         "Typing :: Typed",
     ],
-    license="MIT License",
+    license="MIT",
     keywords=(
         "brawl stars, brawl stars api, brawlstars,"
         "supercell, brawl, stars, api,"
