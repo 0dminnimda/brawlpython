@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as file:
 
 setup(
     name="brawlpython",
-    version="1.0.0",
+    version="1.0.1",
     description="Easy-to-configure library to use any Brawl Stars API",
     long_description=long_description,
     long_description_content_type="text/markdown",

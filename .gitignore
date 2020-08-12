@@ -21,6 +21,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.pypirc
 bin/
 .Python
 build/
