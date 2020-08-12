@@ -13,7 +13,7 @@ Easy-to-configure library to use any Brawl Stars API
 
 [pypi img]: https://img.shields.io/pypi/v/brawlpython.svg?style=plastic
 [thanks img]: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg?style=plastic
-[license img]: https://img.shields.io/pypi/pyversions/brawlpython.svg?style=plastic
+[license img]: https://img.shields.io/pypi/l/brawlpython?style=plastic
 [versions img]: https://img.shields.io/pypi/pyversions/brawlpython.svg?style=plastic
 [pypi link]: https://pypi.org/project/brawlpython
 [thanks link]: https://saythanks.io/to/0dminnimda@gmail.com
