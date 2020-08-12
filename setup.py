@@ -40,8 +40,8 @@ setup(
         "brawlpython, python, async, aiohttp, sync, requests,"
     ),
     project_urls={
-        "Documentation": "Coming soon",
-        "Funding": "Haven\'t done yet :(",
+        # "Documentation": "Coming soon",
+        # "Funding": "Haven\'t done yet :(",
         "Say Thanks!": "https://saythanks.io/to/0dminnimda%40gmail.com",
         "Source": github_link,
         "Bug tracker": github_link + "/issues",
