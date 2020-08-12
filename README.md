@@ -1,14 +1,14 @@
 # brawlpython
- 
-Easy-to-configure library to use any Brawl Stars API
-
-[Project link](https://github.com/0dminnimda/brawlpython)
 
 [![PyPi][pypi img]][pypi link]
 ![Supported Versions][versions img]
 [![License][license img]][license link]
 
 [![Say Thanks!][thanks img]][thanks link]
+
+
+Easy-to-configure library to use any Brawl Stars API
+[Project link](https://github.com/0dminnimda/brawlpython)
 
 
 [pypi img]: https://img.shields.io/pypi/v/brawlpython.svg?style=plastic
