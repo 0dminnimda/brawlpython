@@ -4,12 +4,15 @@ Easy-to-configure library to use any Brawl Stars API
 
 [Project link](https://github.com/0dminnimda/brawlpython)
 
-[![Say Thanks!][image]][hyperlink]
+[![Say Thanks!][thanks img]][thanks link]
+[![PyPi][pypi img]][pypi link]
+[![Supported Versions][versions img]][versions link]
 
-  [hyperlink]: https://saythanks.io/to/0dminnimda@gmail.com
-  [image]: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg (Say Thanks!)
 
-[![PyPi][image]][hyperlink]
+[pypi img]: https://img.shields.io/pypi/v/brawlpython.svg?style=plastic
+[thanks img]: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg?style=plastic
+[versions img]: https://img.shields.io/pypi/pyversions/brawlpython.svg?style=plastic
 
-  [hyperlink]: https://pypi.org/project/brawlpython
-  [image]: https://img.shields.io/pypi/v/brawlpython.svg (PyPi)
+[pypi link]: https://pypi.org/project/brawlpython
+[thanks link]: https://saythanks.io/to/0dminnimda@gmail.com
+[versions link]: https://pypi.org/project/brawlpython
