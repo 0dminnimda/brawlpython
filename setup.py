@@ -8,6 +8,8 @@ with open("README.md", "r") as file:
 with open("requirements.txt", "r") as file:
     requirements = [line.strip() for line in file]
 
+github_link = "https://github.com/0dminnimda/brawlpython"
+
 setup(
     name="brawlpython",
     version=__version__,
@@ -16,7 +18,7 @@ setup(
     long_description_content_type="text/markdown",
     author="0dminnimda",
     author_email="0dminnimda@gmail.com",
-    url="https://github.com/0dminnimda/brawlpython",
+    url=github_link,
     packages=find_packages(),
     classifiers=[
         "Development Status :: 1 - Planning",
@@ -37,6 +39,13 @@ setup(
         "supercell, brawl, stars, api,"
         "brawlpython, python, async, aiohttp, sync, requests,"
     ),
+    project_urls={
+        "Documentation": "Coming soon",
+        "Funding": "Haven\'t done yet :(",
+        "Say Thanks!": "https://saythanks.io/to/0dminnimda%40gmail.com",
+        "Source": github_link,
+        "Bug tracker": github_link + "/issues",
+    },
     install_requires=requirements,
-    python_requires=">=3.8",
+    python_requires="~=3.8",
 )
