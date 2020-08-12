@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 
-with open("README.rst", "r") as file:
+with open("README.md", "r") as file:
     long_description = file.read()
 
 with open("requirements.txt", "r") as file:
@@ -12,7 +12,7 @@ setup(
     version="1.0.0",
     description="Easy-to-configure library to use any Brawl Stars API",
     long_description=long_description,
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     author="0dminnimda",
     author_email="0dminnimda@gmail.com",
     url="https://github.com/0dminnimda/brawlpython",
