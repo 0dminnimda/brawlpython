@@ -26,6 +26,8 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Natural Language :: English",
         "Topic :: Games/Entertainment :: Real Time Strategy",
@@ -49,5 +51,5 @@ setup(
         "Bug tracker": github_link + "/issues",
     },
     install_requires=requirements,
-    python_requires="~=3.8",
+    python_requires="~=3.6",
 )

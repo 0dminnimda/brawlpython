@@ -8,6 +8,7 @@
 
 
 Easy-to-configure library to use any Brawl Stars API
+
 [Project link](https://github.com/0dminnimda/brawlpython)
 
 
