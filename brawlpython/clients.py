@@ -32,8 +32,8 @@ class AsyncClient:
         )
 
     async def close(self) -> None:
-        if not self.close:
-            self.session.close()
+        if not self.closed:
+            await self.session.close()
             # Zero-sleep to allow underlying connections to close
             await asyncio.sleep(0)
 

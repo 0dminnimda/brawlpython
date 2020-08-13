@@ -3,7 +3,6 @@
 [![PyPi][pypi img]][pypi link]
 ![Supported Versions][versions img]
 [![License][license img]][license link]
-
 [![Say Thanks!][thanks img]][thanks link]
 
 

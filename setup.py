@@ -21,7 +21,7 @@ setup(
     url=github_link,
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 1 - Planning",
+        "Development Status :: 2 - Pre-Alpha",
         "Framework :: AsyncIO",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
