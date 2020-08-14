@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from brawlpython import __version__
 from setuptools import find_packages, setup
 
@@ -5,7 +7,7 @@ from setuptools import find_packages, setup
 with open("README.md", "r") as file:
     long_description = file.read()
 
-with open("requirements.txt", "r") as file:
+with open("requirements/common.txt", "r") as file:
     requirements = [line.strip() for line in file]
 
 github_link = "https://github.com/0dminnimda/brawlpython"

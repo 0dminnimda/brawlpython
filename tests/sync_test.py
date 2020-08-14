@@ -1,0 +1,37 @@
+# -*- coding: utf-8 -*-
+
+import pytest
+import brawlpython as bp
+
+
+@pytest.yield_fixture
+def create_client():
+    client = None
+
+    def maker(*args, **kwargs):
+        nonlocal client
+        client = bp.SyncClient(*args, **kwargs)
+        return client
+
+    yield maker
+
+    if client is not None:
+        client.close()
+
+
+@pytest.yield_fixture
+def client(create_client):
+    return create_client()
+
+
+def test_any(client):
+    assert not client.closed
+
+    with client.session.get("https://www.python.org/") as resp:
+        assert resp.status_code == 200
+
+
+if __name__ == "__main__":
+    import run_tests
+
+    run_tests.run(__file__)
