@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-import brawlpython as bp
+from brawlpython import AsyncClient
 
 
 @pytest.fixture
@@ -10,7 +10,7 @@ def create_client(loop):
 
     async def maker(*args, **kwargs):
         nonlocal client
-        client = bp.AsyncClient(*args, **kwargs)
+        client = AsyncClient(*args, **kwargs)
         return client
 
     yield maker

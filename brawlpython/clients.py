@@ -3,6 +3,9 @@
 from aiohttp import ClientSession, TCPConnector
 import asyncio
 from requests import Session
+
+from .async_init import AsyncInitObject
+
 from types import TracebackType
 from typing import (
     Any,
@@ -28,8 +31,8 @@ __all__ = (
 TRUST_ENV = True
 
 
-class AsyncClient:
-    def __init__(self) -> None:
+class AsyncClient(AsyncInitObject):
+    async def __init__(self) -> None:
         self.loop = asyncio.get_event_loop()
 
         self.session = ClientSession(

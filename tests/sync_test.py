@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-import brawlpython as bp
+from brawlpython import SyncClient
 
 
 @pytest.yield_fixture
@@ -10,7 +10,7 @@ def create_client():
 
     def maker(*args, **kwargs):
         nonlocal client
-        client = bp.SyncClient(*args, **kwargs)
+        client = SyncClient(*args, **kwargs)
         return client
 
     yield maker
