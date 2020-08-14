@@ -51,6 +51,7 @@ setup(
         # as long as the `url` parameter does not differ from
         # `project_urls["Source"]`, the latter is meaningless
         "Bug tracker": github_link + "/issues",
+        "Code examples": github_link + "/tree/master/examples",
     },
     install_requires=requirements,
     python_requires="~=3.6",
