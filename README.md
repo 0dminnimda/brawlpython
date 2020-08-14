@@ -13,6 +13,8 @@ Easy-to-configure library to use any Brawl Stars API
 
 Documentation coming soon
 
+[Read code examples][examples link]
+
 
 [pypi img]: https://img.shields.io/pypi/v/brawlpython.svg?style=plastic
 [thanks img]: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg?style=plastic
@@ -25,3 +27,4 @@ Documentation coming soon
 [license link]: https://github.com/0dminnimda/brawlpython/blob/master/LICENSE
 [wheel link]: https://pypi.org/project/brawlpython/#files
 [github link]: https://github.com/0dminnimda/brawlpython
+[examples link]: https://github.com/0dminnimda/brawlpython/tree/master/examples
