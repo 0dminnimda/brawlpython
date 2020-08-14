@@ -21,4 +21,4 @@ Easy-to-configure library to use any Brawl Stars API
 [pypi link]: https://pypi.org/project/brawlpython
 [thanks link]: https://saythanks.io/to/0dminnimda@gmail.com
 [license link]: https://github.com/0dminnimda/brawlpython/blob/master/LICENSE
-[wheel link]: https://pypi.org/project/brawlpython/#modal-close
+[wheel link]: https://pypi.org/project/brawlpython/#files
