@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from brawlpython import __version__
+from brawlpython import __version__, __name__
 from setuptools import find_packages, setup
 
 
@@ -13,7 +13,7 @@ with open("requirements/common.txt", "r") as file:
 github_link = "https://github.com/0dminnimda/brawlpython"
 
 setup(
-    name="brawlpython",
+    name=__name__,
     version=__version__,
     description="Easy-to-configure library to use any Brawl Stars API",
     long_description=long_description,
