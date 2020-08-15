@@ -32,7 +32,7 @@ __all__ = (
 
 
 class AsyncSession(AsyncInitObject):
-    async def __init__(self, token: str, trust_env: bool = True, ttl: int) -> None:
+    async def __init__(self, token: str, trust_env: bool = True) -> None:
         headers = make_headers(token)
         loop = asyncio.get_event_loop()
         self.session = ClientSession(
