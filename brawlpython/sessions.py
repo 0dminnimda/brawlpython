@@ -32,12 +32,13 @@ __all__ = (
 
 
 class AsyncSession(AsyncInitObject):
-    async def __init__(self, token: str, trust_env: bool = True) -> None:
+    async def __init__(self, token: str, trust_env: bool = True, ttl: int) -> None:
         headers = make_headers(token)
         loop = asyncio.get_event_loop()
         self.session = ClientSession(
             loop=loop,
-            # connector=TCPConnector(ttl_dns_cache=60),
+            # XXX: it is probably better to use "cachetools.TTLCache"
+            connector=TCPConnector(use_dns_cache=False, loop=loop),
             trust_env=trust_env,
             headers=headers,
         )
@@ -48,6 +49,7 @@ class AsyncSession(AsyncInitObject):
         Release all acquired resources.
         """
         if not self.closed:
+            # XXX: https://github.com/aio-libs/aiohttp/issues/1925
             await self.session.close()
             # Zero-sleep to allow underlying connections to close
             await asyncio.sleep(0)

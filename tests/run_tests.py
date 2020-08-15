@@ -13,14 +13,16 @@ def run(file_name=""):
 
     pytest.main([
         "tests/" + file_name,
-        "-v", "-r A",
+        "-v", "-r fEx",
         "--show-capture=stdout",
         cov,
+        "--pycodestyle",
     ])
 
     # cmd usage:
     # run from the root directory:
-    # pytest tests/ -v -r A --show-capture=stdout --cov=brawlpython
+    """pytest tests/ -v -r fEx --show-capture=stdout
+     --cov=brawlpython --pycodestyle"""
 
 
 if __name__ == "__main__":

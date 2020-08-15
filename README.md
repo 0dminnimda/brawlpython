@@ -4,6 +4,7 @@
 ![Supported Versions][versions img]
 [![License][license img]][license link]
 [![Wheel][wheel img]][wheel link]
+[![Coverage Status][cov img]][cov link]
 [![Say Thanks!][thanks img]][thanks link]
 
 
@@ -21,6 +22,7 @@ Documentation coming soon
 [license img]: https://img.shields.io/pypi/l/brawlpython?style=plastic
 [versions img]: https://img.shields.io/pypi/pyversions/brawlpython.svg?style=plastic
 [wheel img]: https://img.shields.io/pypi/wheel/brawlpython?style=plastic
+[cov img]: https://coveralls.io/repos/github/0dminnimda/brawlpython/badge.svg?branch=master
 
 [pypi link]: https://pypi.org/project/brawlpython
 [thanks link]: https://saythanks.io/to/0dminnimda@gmail.com
@@ -28,3 +30,4 @@ Documentation coming soon
 [wheel link]: https://pypi.org/project/brawlpython/#files
 [github link]: https://github.com/0dminnimda/brawlpython
 [examples link]: https://github.com/0dminnimda/brawlpython/tree/master/examples
+[cov link]: https://coveralls.io/github/0dminnimda/brawlpython?branch=master
