@@ -2,6 +2,8 @@ import sys
 
 from . import __version__, __name__
 
+from typing import Dict, Union
+
 
 def make_headers(token: str) -> Dict[str, Union[int, str]]:
     return {
