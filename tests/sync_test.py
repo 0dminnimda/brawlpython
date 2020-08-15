@@ -21,12 +21,18 @@ def create_client():
 
 @pytest.yield_fixture
 def client(create_client):
-    return create_client()
+    return create_client("")
+
+
+def test_closing(client):
+    assert not client.closed
+
+    client.close()
+
+    assert client.closed
 
 
 def test_any(client):
-    assert not client.closed
-
     with client.session.get("https://www.python.org/") as resp:
         assert resp.status_code == 200
 

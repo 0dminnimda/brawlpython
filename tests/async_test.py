@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+import asyncio
 from brawlpython import AsyncClient
 
 
@@ -10,7 +11,7 @@ def create_client(loop):
 
     async def maker(*args, **kwargs):
         nonlocal client
-        client = AsyncClient(*args, **kwargs)
+        client = await AsyncClient(*args, **kwargs)
         return client
 
     yield maker
@@ -21,12 +22,26 @@ def create_client(loop):
 
 @pytest.fixture
 def client(create_client, loop):
-    return loop.run_until_complete(create_client())
+    return loop.run_until_complete(create_client(""))
+
+
+async def test_closing(client):
+    assert not client.closed
+
+    await client.close()
+
+    assert client.closed
+
+
+async def test_async_init():
+    client = AsyncClient("")
+
+    assert asyncio.iscoroutine(client)
+
+    await client
 
 
 async def test_any(client):
-    assert not client.closed
-
     async with client.session.get("https://www.python.org/") as resp:
         assert resp.status == 200
 

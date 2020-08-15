@@ -5,16 +5,21 @@ import asyncio
 from requests import Session
 
 from .async_init import AsyncInitObject
+from . import __version__
+
+import sys
 
 from types import TracebackType
 from typing import (
     Any,
     Coroutine,
+    Dict,
     Generator,
     Generic,
     Iterable,
     List,
     Mapping,
+    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -26,20 +31,29 @@ from typing import (
 __all__ = (
     "AsyncClient",
     "SyncClient",
+    "make_headers",
 )
 
-TRUST_ENV = True
+
+def make_headers(token: str) -> Dict[str, Union[int, str]]:
+    return {
+        "dnt": 1,
+        "authorization": f"Bearer {token}",
+        "user-agent": f"brawlpython/{__version__} (Python {sys.version[:5]})",
+        "accept-encoding": "br, gzip",
+    }
 
 
 class AsyncClient(AsyncInitObject):
-    async def __init__(self) -> None:
+    async def __init__(self, token: str) -> None:
         self.loop = asyncio.get_event_loop()
-
         self.session = ClientSession(
             loop=self.loop,
             # connector=TCPConnector(ttl_dns_cache=60),
-            trust_env=TRUST_ENV,
+            trust_env=True,
         )
+
+        self.headers = make_headers(token)
 
     async def close(self) -> None:
         if not self.closed:
@@ -76,11 +90,13 @@ class AsyncClient(AsyncInitObject):
 
 
 class SyncClient:
-    def __init__(self) -> None:
+    def __init__(self, token: str) -> None:
         self._closed = False
 
         self.session = Session()
-        self.session.trust_env = TRUST_ENV
+        self.session.trust_env = True
+
+        self.headers = make_headers(token)
 
     def close(self) -> None:
         if not self.closed:
