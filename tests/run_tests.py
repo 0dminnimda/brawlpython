@@ -7,21 +7,23 @@ def run(file_name=""):
     file_name = file_name.split("\\")[-1]
 
     # show cov only when testing all files
-    cov = "--cov=brawlpython"
+    add = [
+        "--cov=brawlpython",
+    ]
+
     if file_name != "":
-        cov = ""
+        add = []
 
     pytest.main([
         "tests/" + file_name,
-        "-v", "-r fEx",
+        "-v", "-r fExP",
         "--show-capture=stdout",
-        cov,
         "--pycodestyle",
-    ])
+    ] + add)
 
     # cmd usage:
     # run from the root directory:
-    """pytest tests/ -v -r fEx --show-capture=stdout
+    """pytest tests/ -v -r fExP --show-capture=stdout
      --cov=brawlpython --pycodestyle"""
 
 

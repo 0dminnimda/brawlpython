@@ -25,6 +25,11 @@ def client(create_client, loop):
     return loop.run_until_complete(create_client(""))
 
 
+def unique(x):
+    seen = list()
+    return not any(i in seen or seen.append(i) for i in x)
+
+
 async def test_closing(client):
     assert not client.closed
 
@@ -42,8 +47,17 @@ async def test_async_init():
 
 
 async def test_any(client):
-    async with client.session.get("https://www.python.org/") as resp:
+    url = "http://httpbin.org/uuid"
+
+    async with client.session.session.get(url) as resp:
         assert resp.status == 200
+
+    a = [
+        await (await client.session.session.get(url)).json()
+        for i in range(10)
+    ]
+
+    assert unique(a)
 
 
 if __name__ == "__main__":

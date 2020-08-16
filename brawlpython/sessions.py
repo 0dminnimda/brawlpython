@@ -2,10 +2,12 @@
 
 from aiohttp import ClientSession, TCPConnector
 import asyncio
+from cachetools import TTLCache
 from requests import Session
 
 from .api_toolkit import make_headers
 from .async_init import AsyncInitObject
+from .cache_utils import self_cache
 
 from typing import (
     Any,
@@ -24,7 +26,6 @@ from typing import (
     Union,
 )
 
-
 __all__ = (
     "AsyncSession",
     "SyncSession",
@@ -42,6 +43,8 @@ class AsyncSession(AsyncInitObject):
             trust_env=trust_env,
             headers=headers,
         )
+
+        self.cache = TTLCache(maxsize=1024, ttl=60)
 
     async def close(self) -> None:
         """
@@ -71,6 +74,8 @@ class SyncSession:
         self.session = Session()
         self.session.trust_env = trust_env
         self.session.headers.update(headers)
+
+        self.cache = TTLCache(maxsize=1024, ttl=60)
 
     def close(self) -> None:
         """

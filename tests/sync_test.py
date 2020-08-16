@@ -33,7 +33,7 @@ def test_closing(client):
 
 
 def test_any(client):
-    with client.session.get("https://www.python.org/") as resp:
+    with client.session.session.get("https://www.python.org/") as resp:
         assert resp.status_code == 200
 
 
