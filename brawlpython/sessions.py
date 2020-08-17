@@ -38,16 +38,17 @@ __all__ = (
 # has nothing to do with the desired behavior
 
 def raise_for_status(self, url: str, code: int,
+
                      data: Mapping[str, Any]) -> None:
     if 200 <= code < 400:
         pass
-    elif code in (400, 403, 404, 429, 500, 503):
-        excp = next(filter(lambda x: x.code == code, WITH_CODE))
-
-        raise excp(url, data.get("reason", ""), data.get("message", ""))
     else:
-        raise UnexpectedResponseCode(
-            url, code, data.get("reason", ""), data.get("message", ""))
+        excp = next(filter(lambda x: x.code == code, WITH_CODE), None)
+        if excp is not None:
+            raise excp(url, data.get("reason", ""), data.get("message", ""))
+        else:
+            raise UnexpectedResponseCode(
+                url, code, data.get("reason", ""), data.get("message", ""))
 
 
 class AsyncSession(AsyncInitObject):
