@@ -55,8 +55,7 @@ class AsyncSession(AsyncInitObject):
         self.use_cache = use_cache
 
     async def close(self) -> None:
-        """
-        Close underlying connector.
+        """Close underlying connector.
         Release all acquired resources.
         """
         if not self.closed:
@@ -67,8 +66,7 @@ class AsyncSession(AsyncInitObject):
 
     @property
     def closed(self) -> bool:
-        """
-        Is client session closed.
+        """Is client session closed.
         A readonly property.
         """
         return self.session.closed
@@ -109,17 +107,14 @@ class SyncSession:
         self.use_cache = use_cache
 
     def close(self) -> None:
-        """
-        Closes all adapters and as such the session
-        """
+        """Closes all adapters and as such the session"""
         if not self.closed:
             self.session.close()
             self._closed = True
 
     @property
     def closed(self) -> bool:
-        """
-        Is client session closed.
+        """Is client session closed.
         A readonly property.
         """
         return self._closed

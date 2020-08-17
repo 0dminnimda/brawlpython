@@ -36,15 +36,12 @@ class AsyncClient(AsyncInitObject):
         self.session = await AsyncSession(token)
 
     async def close(self) -> None:
-        """
-        Close session
-        """
+        """Close session"""
         await self.session.close()
 
     @property
     def closed(self) -> bool:
-        """
-        Is client session closed.
+        """Is client session closed.
         A readonly property.
         """
         return self.session.closed
@@ -74,15 +71,12 @@ class SyncClient:
         self.session = SyncSession(token)
 
     def close(self) -> None:
-        """
-        Close session
-        """
+        """Close session"""
         self.session.close()
 
     @property
     def closed(self) -> bool:
-        """
-        Is client session closed.
+        """Is client session closed.
         A readonly property.
         """
         return self.session.closed
