@@ -33,12 +33,14 @@ __all__ = (
 )
 
 
+R = TypeVar('R', bound=Union[Dict[str, Any], List[Dict[str, Any]]])
+
+
 # XXX: in both functions I need to find a suitable cache_limit
 # 1024 is a relatively random choice and
 # has nothing to do with the desired behavior
 
 def raise_for_status(self, url: str, code: int,
-
                      data: Mapping[str, Any]) -> None:
     if 200 <= code < 400:
         pass
@@ -89,20 +91,23 @@ class AsyncSession(AsyncInitObject):
 
     raise_for_status = raise_for_status
 
-    async def simple_get_json(self, url: str) -> Dict:
+    async def simple_get_json(self, url: str) -> R:
         async with self.session.get(url) as response:
             data = await response.json()
 
             self.raise_for_status(url, response.status, data)
 
+        get_items = data.get("items")
+        if get_items is not None and isinstance(get_items, list):
+            return get_items
         return data
 
     @self_cache(sync=False)
-    async def cached_get_json(self, url: str) -> Dict:
+    async def cached_get_json(self, url: str) -> R:
         return await self.simple_get_json(url)
 
     async def get_json(self, url: str,
-                       use_cache: Optional[bool] = None) -> Dict:
+                       use_cache: Optional[bool] = None) -> R:
         if use_cache is None:
             use_cache = self.use_cache
 
@@ -144,19 +149,22 @@ class SyncSession:
 
     raise_for_status = raise_for_status
 
-    def simple_get_json(self, url: str) -> Dict:
+    def simple_get_json(self, url: str) -> R:
         with self.session.get(url, timeout=self.timeout) as response:
             data = response.json()
 
             self.raise_for_status(url, response.status_code, data)
 
+        get_items = data.get("items")
+        if get_items is not None and isinstance(get_items, list):
+            return get_items
         return data
 
     @self_cache(sync=True)
-    def cached_get_json(self, url: str) -> Dict:
+    def cached_get_json(self, url: str) -> R:
         return self.simple_get_json(url)
 
-    def get_json(self, url: str, use_cache: Optional[bool] = None) -> Dict:
+    def get_json(self, url: str, use_cache: Optional[bool] = None) -> R:
         if use_cache is None:
             use_cache = self.use_cache
 
