@@ -50,7 +50,7 @@ def async_cached(cache: Cache, key=keys.hashkey, lock=None):
     return decorator
 
 
-def self_cache(sync: bool):
+def self_cache(*, sync: bool):
     def decorator(func):
         if not sync:
             @wraps(func)

@@ -22,7 +22,7 @@ def create_client(loop):
 
 @pytest.fixture
 def client(create_client, loop):
-    return loop.run_until_complete(create_client(""))
+    return loop.run_until_complete(create_client("", ttl=4))
 
 
 def unique(x):
@@ -58,6 +58,13 @@ async def test_any(client):
     ]
 
     assert unique(a)
+
+    resp1 = await client.session.cached_request(url)
+    resp2 = await client.session.cached_request(url)
+
+    await asyncio.sleep(5)
+
+    assert resp1 == resp2
 
 
 if __name__ == "__main__":

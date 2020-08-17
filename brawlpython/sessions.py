@@ -32,19 +32,26 @@ __all__ = (
 )
 
 
+# XXX: in both functions I need to find a suitable cache_limit
+# 1024 is a relatively random choice and
+# has nothing to do with the desired behavior
+
 class AsyncSession(AsyncInitObject):
-    async def __init__(self, token: str, trust_env: bool = True) -> None:
+    async def __init__(self, token: str, trust_env: bool = True,
+                       cache_ttl: Union[int, float] = 60,
+                       cache_limit: int = 1024,
+                       use_cache: bool = True) -> None:
         headers = make_headers(token)
         loop = asyncio.get_event_loop()
         self.session = ClientSession(
             loop=loop,
-            # XXX: it is probably better to use "cachetools.TTLCache"
             connector=TCPConnector(use_dns_cache=False, loop=loop),
             trust_env=trust_env,
             headers=headers,
         )
 
-        self.cache = TTLCache(maxsize=1024, ttl=60)
+        self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+        self.use_cache = use_cache
 
     async def close(self) -> None:
         """
@@ -65,9 +72,31 @@ class AsyncSession(AsyncInitObject):
         """
         return self.session.closed
 
+    async def simple_get_json(self, url: str) -> Dict:
+        data = {}
+        async with self.session.get(url) as response:
+            data = await response.json()
+        return data
+
+    @self_cache(sync=False)
+    async def cached_get_json(self, url: str) -> Dict:
+        return await self.simple_get_json(url)
+
+    async def get_json(self, url: str,
+                       use_cache: Optional[bool] = None) -> Dict:
+        if use_cache is None:
+            use_cache = self.use_cache
+
+        if use_cache:
+            return await self.cached_get_json(url)
+        else:
+            return await self.simple_get_json(url)
+
 
 class SyncSession:
-    def __init__(self, token: str, trust_env: bool = True) -> None:
+    def __init__(self, token: str, trust_env: bool = True,
+                 cache_ttl: Union[int, float] = 60,
+                 cache_limit: int = 1024, use_cache: bool = True) -> None:
         self._closed = False
 
         headers = make_headers(token)
@@ -75,7 +104,8 @@ class SyncSession:
         self.session.trust_env = trust_env
         self.session.headers.update(headers)
 
-        self.cache = TTLCache(maxsize=1024, ttl=60)
+        self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+        self.use_cache = use_cache
 
     def close(self) -> None:
         """
@@ -92,3 +122,22 @@ class SyncSession:
         A readonly property.
         """
         return self._closed
+
+    def simple_get_json(self, url: str) -> Dict:
+        with self.session.get(url) as response:
+            data = response.json()
+
+        return data
+
+    @self_cache(sync=True)
+    def cached_get_json(self, url: str) -> Dict:
+        return self.simple_get_json(url)
+
+    def get_json(self, url: str, use_cache: Optional[bool] = None) -> Dict:
+        if use_cache is None:
+            use_cache = self.use_cache
+
+        if use_cache:
+            return self.cached_get_json(url)
+        else:
+            return self.simple_get_json(url)
