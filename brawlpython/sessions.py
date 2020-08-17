@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
 from cachetools import TTLCache
 from requests import Session
@@ -41,7 +41,8 @@ class AsyncSession(AsyncInitObject):
     async def __init__(self, token: str, trust_env: bool = True,
                        cache_ttl: Union[int, float] = 60,
                        cache_limit: int = 1024,
-                       use_cache: bool = True) -> None:
+                       use_cache: bool = True,
+                       timeout: Union[int, float] = 30) -> None:
         headers = make_headers(token)
         loop = asyncio.get_event_loop()
         self.session = ClientSession(
@@ -49,6 +50,7 @@ class AsyncSession(AsyncInitObject):
             connector=TCPConnector(use_dns_cache=False, loop=loop),
             trust_env=trust_env,
             headers=headers,
+            timeout=ClientTimeout(total=timeout),
         )
 
         self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
@@ -72,7 +74,6 @@ class AsyncSession(AsyncInitObject):
         return self.session.closed
 
     async def simple_get_json(self, url: str) -> Dict:
-        data = {}
         async with self.session.get(url) as response:
             data = await response.json()
         return data
@@ -95,7 +96,8 @@ class AsyncSession(AsyncInitObject):
 class SyncSession:
     def __init__(self, token: str, trust_env: bool = True,
                  cache_ttl: Union[int, float] = 60,
-                 cache_limit: int = 1024, use_cache: bool = True) -> None:
+                 cache_limit: int = 1024, use_cache: bool = True,
+                 timeout: Union[int, float] = 30) -> None:
         self._closed = False
 
         headers = make_headers(token)
@@ -105,6 +107,8 @@ class SyncSession:
 
         self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
         self.use_cache = use_cache
+
+        self.timeout = timeout
 
     def close(self) -> None:
         """Closes all adapters and as such the session"""
@@ -120,9 +124,8 @@ class SyncSession:
         return self._closed
 
     def simple_get_json(self, url: str) -> Dict:
-        with self.session.get(url) as response:
+        with self.session.get(url, timeout=self.timeout) as response:
             data = response.json()
-
         return data
 
     @self_cache(sync=True)
