@@ -1,3 +1,16 @@
+__all__ = (
+    "ClientException",
+
+    "ClientResponseError",
+    "UnexpectedResponseCode",
+    "BadRequest", "Forbidden", "NotFound",
+    "TooManyRequests", "InternalServerError",
+    "ServiceUnavailable", "WITH_CODE",
+)
+
+
+# TODO: do __repr__ and possibly __str__ for classes
+
 class ClientException(Exception):
     """Base class for all client exceptions."""
 
@@ -16,9 +29,9 @@ class UnexpectedResponseCode(ClientResponseError):
     in the official api documentation.
     """
 
-    def __init__(self, code: int, **kwargs):
+    def __init__(self, url: str, code: int, **kwargs):
         self.code = code
-        super().__init__(**kwargs)
+        super().__init__(url, **kwargs)
 
 
 class BadRequest(ClientResponseError):
@@ -59,3 +72,9 @@ class ServiceUnavailable(ClientResponseError):
     """Service is temprorarily unavailable because of maintenance."""
 
     code = 503
+
+
+WITH_CODE = [
+    BadRequest, Forbidden, NotFound,
+    TooManyRequests, InternalServerError, ServiceUnavailable
+]

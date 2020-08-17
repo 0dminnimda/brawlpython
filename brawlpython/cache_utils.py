@@ -1,4 +1,4 @@
-from cachetools import keys, Cache
+from cachetools import keys, Cache, cached
 from functools import wraps
 
 __all__ = (

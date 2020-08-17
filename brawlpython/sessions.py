@@ -8,6 +8,7 @@ from requests import Session
 from .api_toolkit import make_headers
 from .async_init import AsyncInitObject
 from .cache_utils import self_cache
+from .exceptions import WITH_CODE, UnexpectedResponseCode
 
 from typing import (
     Any,
@@ -18,7 +19,6 @@ from typing import (
     Iterable,
     List,
     Mapping,
-    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -36,6 +36,19 @@ __all__ = (
 # XXX: in both functions I need to find a suitable cache_limit
 # 1024 is a relatively random choice and
 # has nothing to do with the desired behavior
+
+def raise_for_status(self, url: str, code: int,
+                     data: Mapping[str, Any]) -> None:
+    if 200 <= code < 400:
+        pass
+    elif code in (400, 403, 404, 429, 500, 503):
+        excp = next(filter(lambda x: x.code == code, WITH_CODE))
+
+        raise excp(url, data.get("reason", ""), data.get("message", ""))
+    else:
+        raise UnexpectedResponseCode(
+            url, code, data.get("reason", ""), data.get("message", ""))
+
 
 class AsyncSession(AsyncInitObject):
     async def __init__(self, token: str, trust_env: bool = True,
@@ -73,9 +86,14 @@ class AsyncSession(AsyncInitObject):
         """
         return self.session.closed
 
+    raise_for_status = raise_for_status
+
     async def simple_get_json(self, url: str) -> Dict:
         async with self.session.get(url) as response:
             data = await response.json()
+
+            self.raise_for_status(url, response.status, data)
+
         return data
 
     @self_cache(sync=False)
@@ -123,9 +141,14 @@ class SyncSession:
         """
         return self._closed
 
+    raise_for_status = raise_for_status
+
     def simple_get_json(self, url: str) -> Dict:
         with self.session.get(url, timeout=self.timeout) as response:
             data = response.json()
+
+            self.raise_for_status(url, response.status_code, data)
+
         return data
 
     @self_cache(sync=True)
