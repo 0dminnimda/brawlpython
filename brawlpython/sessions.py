@@ -12,6 +12,7 @@ from .cache_utils import self_cache
 from typing import (
     Any,
     Coroutine,
+    Dict,
     Generator,
     Generic,
     Iterable,
