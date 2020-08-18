@@ -2,7 +2,7 @@
 
 import asyncio
 
-from .async_init import AsyncInitObject
+from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .sessions import AsyncSession, SyncSession
 
 from types import TracebackType
@@ -30,7 +30,7 @@ __all__ = (
 )
 
 
-class AsyncClient(AsyncInitObject):
+class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(self, token: str) -> None:
         self.session = await AsyncSession(token)
 
@@ -45,27 +45,8 @@ class AsyncClient(AsyncInitObject):
         """
         return self.session.closed
 
-    def __enter__(self) -> None:
-        raise TypeError("Use `async with` instead")
 
-    def __exit__(self,
-                 exc_type: Optional[Type[BaseException]],
-                 exc_val: Optional[BaseException],
-                 exc_tb: Optional[TracebackType]) -> None:
-        # __exit__ should exist in pair with __enter__ but never executed
-        pass
-
-    async def __aenter__(self) -> "AsyncClient":
-        return self
-
-    async def __aexit__(self,
-                        exc_type: Optional[Type[BaseException]],
-                        exc_val: Optional[BaseException],
-                        exc_tb: Optional[TracebackType]) -> None:
-        await self.close()
-
-
-class SyncClient:
+class SyncClient(SyncWith):
     def __init__(self, token: str) -> None:
         self.session = SyncSession(token)
 
@@ -79,22 +60,3 @@ class SyncClient:
         A readonly property.
         """
         return self.session.closed
-
-    def __enter__(self) -> "SyncClient":
-        return self
-
-    def __exit__(self,
-                 exc_type: Optional[Type[BaseException]],
-                 exc_val: Optional[BaseException],
-                 exc_tb: Optional[TracebackType]) -> None:
-        self.close()
-
-    async def __aenter__(self) -> None:
-        raise TypeError("Use `with` instead")
-
-    async def __aexit__(self,
-                        exc_type: Optional[Type[BaseException]],
-                        exc_val: Optional[BaseException],
-                        exc_tb: Optional[TracebackType]) -> None:
-        # __aexit__ should exist in pair with __aenter__ but never executed
-        pass

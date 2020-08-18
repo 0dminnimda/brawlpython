@@ -1,67 +1,61 @@
-from cachetools import keys, Cache, cached
-from functools import wraps
+import asyncio
+from cachetools import keys, Cache, cachedmethod
+from functools import wraps, partial, update_wrapper
 
 __all__ = (
-    "async_cached",
+    "async_cachedmethod",
     "self_cache"
 )
 
 
 # annotating the remaining parameters of this function causes too many problems
-def async_cached(cache: Cache, key=keys.hashkey, lock=None):
-    def decorator(func):
+def async_cachedmethod(cache: Cache, key=keys.hashkey, lock=None):
+    """Decorator to wrap a class or instance method with a memoizing
+    callable that saves results in a cache.
+    """
+    def decorator(method):
         if lock is None:
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                k = key(*args, **kwargs)
-                try:
-                    return cache[k]
-                except KeyError:
-                    pass  # key not found
-
-                val = await func(*args, **kwargs)
-
-                try:
-                    cache[k] = val
-                except ValueError:
-                    pass  # val too large
-
-                return val
-        else:
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                k = key(*args, **kwargs)
-                try:
-                    async with lock:
-                        return cache[k]
-                except KeyError:
-                    pass  # key not found
-
-                val = await func(*args, **kwargs)
-
-                try:
-                    async with lock:
-                        cache[k] = val
-                except ValueError:
-                    pass  # val too large
-
-                return val
-        return wrapper
-    return decorator
-
-
-def self_cache(*, sync: bool):
-    def decorator(func):
-        if not sync:
-            @wraps(func)
             async def wrapper(self, *args, **kwargs):
-                new_func = async_cached(cache=self.cache)(func)
-                return await new_func(self, *args, **kwargs)
+                c = cache(self)
+                k = key(*args, **kwargs)
+                try:
+                    return c[k]
+                except KeyError:
+                    pass  # key not found
+                v = await method(self, *args, **kwargs)
+                try:
+                    c[k] = v
+                except ValueError:
+                    pass  # value too large
+                return v
         else:
-            @wraps(func)
-            def wrapper(self, *args, **kwargs):
-                new_func = cached(cache=self.cache)(func)
-                return new_func(self, *args, **kwargs)
-
-        return wrapper
+            async def wrapper(self, *args, **kwargs):
+                c = cache(self)
+                k = key(*args, **kwargs)
+                try:
+                    with lock(self):
+                        return c[k]
+                except KeyError:
+                    pass  # key not found
+                v = await method(self, *args, **kwargs)
+                try:
+                    with lock(self):
+                        c[k] = v
+                except ValueError:
+                    pass  # value too large
+                return v
+        return update_wrapper(wrapper, method)
     return decorator
+
+
+def cache(self):
+    return self.cache
+
+
+def self_cache(func):
+    key = partial(keys.hashkey, func.__name__)
+    if asyncio.iscoroutinefunction(func):
+        wrapper = async_cachedmethod(cache=cache, key=key)(func)
+    else:
+        wrapper = cachedmethod(cache=cache, key=key)(func)
+    return update_wrapper(wrapper, func)

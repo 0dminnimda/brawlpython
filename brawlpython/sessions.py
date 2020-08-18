@@ -5,10 +5,11 @@ import asyncio
 from cachetools import TTLCache
 from requests import Session
 
-from .api_toolkit import make_headers
-from .async_init import AsyncInitObject
+from .api_toolkit import make_headers, multiple_params
+from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import self_cache
 from .exceptions import WITH_CODE, UnexpectedResponseCode
+from .typedefs import URLS, L, R
 
 from typing import (
     Any,
@@ -33,9 +34,6 @@ __all__ = (
 )
 
 
-R = TypeVar('R', bound=Union[Dict[str, Any], List[Dict[str, Any]]])
-
-
 # XXX: in both functions I need to find a suitable cache_limit
 # 1024 is a relatively random choice and
 # has nothing to do with the desired behavior
@@ -53,7 +51,7 @@ def raise_for_status(self, url: str, code: int,
                 url, code, data.get("reason", ""), data.get("message", ""))
 
 
-class AsyncSession(AsyncInitObject):
+class AsyncSession(AsyncInitObject, AsyncWith):
     async def __init__(self, token: str, trust_env: bool = True,
                        cache_ttl: Union[int, float] = 60,
                        cache_limit: int = 1024,
@@ -102,12 +100,20 @@ class AsyncSession(AsyncInitObject):
             return get_items
         return data
 
-    @self_cache(sync=False)
+    @multiple_params
+    async def simple_get_jsons(self, urls: URLS) -> L:
+        return await simple_get_json(urls)  # in reality only one url
+
+    @self_cache
     async def cached_get_json(self, url: str) -> R:
         return await self.simple_get_json(url)
 
-    async def get_json(self, url: str,
-                       use_cache: Optional[bool] = None) -> R:
+    @multiple_params
+    async def cached_get_jsons(self, urls: URLS) -> L:
+        return await self.cached_get_json(urls)  # in reality only one url
+
+    async def get_json(self, url: str, use_cache: Optional[bool] = None) -> R:
+
         if use_cache is None:
             use_cache = self.use_cache
 
@@ -116,8 +122,16 @@ class AsyncSession(AsyncInitObject):
         else:
             return await self.simple_get_json(url)
 
+    @multiple_params
+    async def get_jsons(
+            self, urls: URLS,
+            use_caches: Optional[Union[List[bool], bool]] = None) -> L:
 
-class SyncSession:
+        # in reality only one url and use_cache
+        return await self.get_json(urls, use_caches)
+
+
+class SyncSession(SyncWith):
     def __init__(self, token: str, trust_env: bool = True,
                  cache_ttl: Union[int, float] = 60,
                  cache_limit: int = 1024, use_cache: bool = True,
@@ -160,9 +174,17 @@ class SyncSession:
             return get_items
         return data
 
-    @self_cache(sync=True)
+    @multiple_params
+    def simple_get_jsons(self, urls: URLS) -> L:
+        return simple_get_json(urls)  # in reality only one url
+
+    @self_cache
     def cached_get_json(self, url: str) -> R:
         return self.simple_get_json(url)
+
+    @multiple_params
+    def cached_get_jsons(self, urls: URLS) -> L:
+        return self.cached_get_json(urls)  # in reality only one url
 
     def get_json(self, url: str, use_cache: Optional[bool] = None) -> R:
         if use_cache is None:
@@ -172,3 +194,10 @@ class SyncSession:
             return self.cached_get_json(url)
         else:
             return self.simple_get_json(url)
+
+    @multiple_params
+    def get_jsons(self, urls: URLS,
+                  use_caches: Optional[Union[List[bool], bool]] = None) -> L:
+
+        # in reality only one url and use_cache
+        return self.get_json(urls, use_caches)
