@@ -1,46 +1,49 @@
 import asyncio
-from cachetools import keys, Cache, cachedmethod
+from cachetools import keys, Cache
 from functools import wraps, partial, update_wrapper
 
 __all__ = (
     "async_cachedmethod",
-    "self_cache"
+    "cachedmethod",
+    "iscorofunc",
+    "get_decorator",
+    "somecachedmethod",
+    "classcache"
 )
 
 
-# annotating the remaining parameters of this function causes too many problems
-def async_cachedmethod(cache: Cache, key=keys.hashkey, lock=None):
+def async_cachedmethod(key=keys.hashkey, lock=None):
     """Decorator to wrap a class or instance method with a memoizing
     callable that saves results in a cache.
     """
     def decorator(method):
         if lock is None:
-            async def wrapper(self, *args, **kwargs):
-                c = cache(self)
+            async def wrapper(self, cache, args, kwargs):
+                cache = self.cache
                 k = key(*args, **kwargs)
                 try:
-                    return c[k]
+                    return cache[k]
                 except KeyError:
                     pass  # key not found
-                v = await method(self, *args, **kwargs)
+                v = await method(self, cache, *args, **kwargs)
                 try:
-                    c[k] = v
+                    cache[k] = v
                 except ValueError:
                     pass  # value too large
                 return v
         else:
-            async def wrapper(self, *args, **kwargs):
-                c = cache(self)
+            async def wrapper(self, cache, args, kwargs):
+                cache = self.cache
                 k = key(*args, **kwargs)
                 try:
                     with lock(self):
-                        return c[k]
+                        return cache[k]
                 except KeyError:
                     pass  # key not found
-                v = await method(self, *args, **kwargs)
+                v = await method(self, cache, *args, **kwargs)
                 try:
                     with lock(self):
-                        c[k] = v
+                        cache[k] = v
                 except ValueError:
                     pass  # value too large
                 return v
@@ -48,14 +51,75 @@ def async_cachedmethod(cache: Cache, key=keys.hashkey, lock=None):
     return decorator
 
 
-def cache(self):
-    return self.cache
+def cachedmethod(key=keys.hashkey, lock=None):
+    """Decorator to wrap a class or instance method with a memoizing
+    callable that saves results in a cache.
+    """
+    def decorator(method):
+        if lock is None:
+            def wrapper(self, cache, args, kwargs):
+                k = key(*args, **kwargs)
+                try:
+                    return cache[k]
+                except KeyError:
+                    pass  # key not found
+                v = method(self, cache, *args, **kwargs)
+                try:
+                    cache[k] = v
+                except ValueError:
+                    pass  # value too large
+                return v
+        else:
+            def wrapper(self, cache, args, kwargs):
+                k = key(*args, **kwargs)
+                try:
+                    with lock(self):
+                        return cache[k]
+                except KeyError:
+                    pass  # key not found
+                v = method(self, cache, *args, **kwargs)
+                try:
+                    with lock(self):
+                        cache[k] = v
+                except ValueError:
+                    pass  # value too large
+                return v
+        return update_wrapper(wrapper, method)
+    return decorator
 
 
-def self_cache(func):
-    key = partial(keys.hashkey, func.__name__)
-    if asyncio.iscoroutinefunction(func):
-        wrapper = async_cachedmethod(cache=cache, key=key)(func)
+def iscorofunc(func):
+    return asyncio.iscoroutinefunction(func)
+
+
+def get_decorator(func):
+    if iscorofunc(func):
+        return async_cachedmethod
     else:
-        wrapper = cachedmethod(cache=cache, key=key)(func)
+        return cachedmethod
+
+
+def somecachedmethod(func):
+    key = partial(keys.hashkey, func.__name__)
+    return get_decorator(func)(key=key)(func)
+
+
+def classcache(func):
+    wrap = somecachedmethod(func)
+    if iscorofunc(func):
+        async def wrapper(self, *args, **kwargs):
+            cache = self.cache
+            if cache is None:
+                res = func(self, *args, **kwargs)
+            else:
+                res = wrap(self, cache, *args, **kwargs)
+            return await res
+    else:
+        def wrapper(self, *args, **kwargs):
+            cache = self.cache
+            if cache is None:
+                res = func(self, *args, **kwargs)
+            else:
+                res = wrap(self, cache, *args, **kwargs)
+            return res
     return update_wrapper(wrapper, func)

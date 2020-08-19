@@ -5,9 +5,9 @@ import asyncio
 from cachetools import TTLCache
 from requests import Session
 
-from .api_toolkit import make_headers, multiple_params
+from .api_toolkit import make_headers, multiparams
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
-from .cache_utils import self_cache
+from .cache_utils import classcache, somecachedmethod
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .typedefs import URLS, L, R
 
@@ -28,6 +28,8 @@ from typing import (
     Union,
 )
 
+import time 
+
 __all__ = (
     "AsyncSession",
     "SyncSession",
@@ -40,7 +42,8 @@ __all__ = (
 
 def raise_for_status(self, url: str, code: int,
                      data: Mapping[str, Any]) -> None:
-    if 200 <= code < 400:
+
+    if code == 200:
         pass
     else:
         excp = next(filter(lambda x: x.code == code, WITH_CODE), None)
@@ -67,7 +70,10 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             timeout=ClientTimeout(total=timeout),
         )
 
-        self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+        if use_cache:
+            self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+        else:
+            self.cache = None
         self.use_cache = use_cache
 
     async def close(self) -> None:
@@ -76,9 +82,10 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         """
         if not self.closed:
             # XXX: https://github.com/aio-libs/aiohttp/issues/1925
+            # https://docs.aiohttp.org/en/stable/client_advanced.html#graceful-shutdown
             await self.session.close()
             # Zero-sleep to allow underlying connections to close
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.250)
 
     @property
     def closed(self) -> bool:
@@ -89,46 +96,26 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     raise_for_status = raise_for_status
 
-    async def simple_get_json(self, url: str) -> R:
+    @somecachedmethod
+    async def _get(self, url: str) -> R:
+        time_start = time.time()
         async with self.session.get(url) as response:
-            data = await response.json()
-
-            self.raise_for_status(url, response.status, data)
+            time_end = time.time()
+            code = response.status
+            text = await response.text()
 
         get_items = data.get("items")
         if get_items is not None and isinstance(get_items, list):
             return get_items
         return data
 
-    @multiple_params
-    async def simple_get_jsons(self, urls: URLS) -> L:
-        return await simple_get_json(urls)  # in reality only one url
-
-    @self_cache
-    async def cached_get_json(self, url: str) -> R:
-        return await self.simple_get_json(url)
-
-    @multiple_params
-    async def cached_get_jsons(self, urls: URLS) -> L:
-        return await self.cached_get_json(urls)  # in reality only one url
-
-    async def get_json(self, url: str, use_cache: Optional[bool] = None) -> R:
-
-        if use_cache is None:
-            use_cache = self.use_cache
-
-        if use_cache:
-            return await self.cached_get_json(url)
-        else:
-            return await self.simple_get_json(url)
-
-    @multiple_params
-    async def get_jsons(
-            self, urls: URLS,
-            use_caches: Optional[Union[List[bool], bool]] = None) -> L:
-
+    @multiparams
+    async def _get_jsons(self, urls: URLS) -> L:
         # in reality only one url and use_cache
-        return await self.get_json(urls, use_caches)
+        return await self.get_json(urls)
+
+    async def get_jsons(self, urls: URLS) -> L:
+        self._get_jsons(urls)
 
 
 class SyncSession(SyncWith):
@@ -143,7 +130,10 @@ class SyncSession(SyncWith):
         self.session.trust_env = trust_env
         self.session.headers.update(headers)
 
-        self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+        if use_cache:
+            self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+        else:
+            self.cache = None
         self.use_cache = use_cache
 
         self.timeout = timeout
@@ -174,15 +164,15 @@ class SyncSession(SyncWith):
             return get_items
         return data
 
-    @multiple_params
+    @multiparams
     def simple_get_jsons(self, urls: URLS) -> L:
         return simple_get_json(urls)  # in reality only one url
 
-    @self_cache
+    @classcache
     def cached_get_json(self, url: str) -> R:
         return self.simple_get_json(url)
 
-    @multiple_params
+    @multiparams
     def cached_get_jsons(self, urls: URLS) -> L:
         return self.cached_get_json(urls)  # in reality only one url
 
@@ -195,7 +185,7 @@ class SyncSession(SyncWith):
         else:
             return self.simple_get_json(url)
 
-    @multiple_params
+    @multiparams
     def get_jsons(self, urls: URLS,
                   use_caches: Optional[Union[List[bool], bool]] = None) -> L:
 
