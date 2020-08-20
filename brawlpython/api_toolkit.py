@@ -149,7 +149,7 @@ def multiparams_classcache(func):
                 params = rearrange_params(self, *args, **kwargs)
                 tasks = [ensure(func(*a, **kw)) for a, kw in params]
             else:
-                params = rearrange_params(self, cache, *args, **kwargs)
+                params = rearrange_params(self, cache, args, kwargs)
                 tasks = [ensure(wrap(*a, **kw)) for a, kw in params]
             return await gather(*tasks)
     else:
@@ -159,7 +159,7 @@ def multiparams_classcache(func):
                 params = rearrange_params(self, *args, **kwargs)
                 res = [func(*a, **kw) for a, kw in params]
             else:
-                params = rearrange_params(self, cache, *args, **kwargs)
+                params = rearrange_params(self, cache, args, kwargs)
                 res = [wrap(*a, **kw) for a, kw in params]
             return res
     return update_wrapper(wrapper, func)

@@ -3,6 +3,7 @@ from cachetools import keys, Cache
 from functools import wraps, partial, update_wrapper
 
 __all__ = (
+    "NaN",
     "async_cachedmethod",
     "cachedmethod",
     "iscorofunc",
@@ -10,6 +11,11 @@ __all__ = (
     "somecachedmethod",
     "classcache"
 )
+
+
+class NaN:
+    "NaN"
+    pass
 
 
 def async_cachedmethod(key=keys.hashkey, lock=None):
@@ -21,11 +27,10 @@ def async_cachedmethod(key=keys.hashkey, lock=None):
             async def wrapper(self, cache, args, kwargs):
                 cache = self.cache
                 k = key(*args, **kwargs)
-                try:
-                    return cache[k]
-                except KeyError:
-                    pass  # key not found
-                v = await method(self, cache, *args, **kwargs)
+                get_k = cache.get(k, NaN)
+                if get_k != NaN:
+                    return get_k
+                v = await method(self, *args, **kwargs)
                 try:
                     cache[k] = v
                 except ValueError:
@@ -35,12 +40,11 @@ def async_cachedmethod(key=keys.hashkey, lock=None):
             async def wrapper(self, cache, args, kwargs):
                 cache = self.cache
                 k = key(*args, **kwargs)
-                try:
-                    with lock(self):
-                        return cache[k]
-                except KeyError:
-                    pass  # key not found
-                v = await method(self, cache, *args, **kwargs)
+                with lock(self):
+                    get_k = cache.get(k, NaN)
+                if get_k != NaN:
+                    return get_k
+                v = await method(self, *args, **kwargs)
                 try:
                     with lock(self):
                         cache[k] = v
@@ -59,11 +63,10 @@ def cachedmethod(key=keys.hashkey, lock=None):
         if lock is None:
             def wrapper(self, cache, args, kwargs):
                 k = key(*args, **kwargs)
-                try:
-                    return cache[k]
-                except KeyError:
-                    pass  # key not found
-                v = method(self, cache, *args, **kwargs)
+                get_k = cache.get(k, NaN)
+                if get_k != NaN:
+                    return get_k
+                v = method(self, *args, **kwargs)
                 try:
                     cache[k] = v
                 except ValueError:
@@ -72,12 +75,11 @@ def cachedmethod(key=keys.hashkey, lock=None):
         else:
             def wrapper(self, cache, args, kwargs):
                 k = key(*args, **kwargs)
-                try:
-                    with lock(self):
-                        return cache[k]
-                except KeyError:
-                    pass  # key not found
-                v = method(self, cache, *args, **kwargs)
+                with lock(self):
+                    get_k = cache.get(k, NaN)
+                if get_k != NaN:
+                    return get_k
+                v = method(self, *args, **kwargs)
                 try:
                     with lock(self):
                         cache[k] = v
@@ -112,7 +114,7 @@ def classcache(func):
             if cache is None:
                 res = func(self, *args, **kwargs)
             else:
-                res = wrap(self, cache, *args, **kwargs)
+                res = wrap(self, cache, args, kwargs)
             return await res
     else:
         def wrapper(self, *args, **kwargs):
@@ -120,6 +122,6 @@ def classcache(func):
             if cache is None:
                 res = func(self, *args, **kwargs)
             else:
-                res = wrap(self, cache, *args, **kwargs)
+                res = wrap(self, cache, args, kwargs)
             return res
     return update_wrapper(wrapper, func)
