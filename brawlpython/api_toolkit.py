@@ -11,6 +11,7 @@ __all__ = (
     "isiter_noliterals",
     "isunitlist",
     "same",
+    "unique",
     "check_kwargs",
     "check_args",
     "check_params",
@@ -42,6 +43,11 @@ def isunitlist(obj):
 
 def same(elements):
     return len(elements) == elements.count(elements[0])
+
+
+def unique(x):
+    seen = list()
+    return not any(i in seen or seen.append(i) for i in x)
 
 
 def check_kwargs(kwargs):

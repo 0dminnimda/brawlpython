@@ -60,9 +60,6 @@ def decor_get(func):
                 code, data = await func(self, url, *args, **kwargs)
 
                 if code == 200:
-                    get_items = data.get("items")
-                    if get_items is not None and isinstance(get_items, list):
-                        return get_items
                     return data
                 elif i == 0:
                     self.raise_for_status(url, code, data)
@@ -75,9 +72,6 @@ def decor_get(func):
                 code, data = func(self, url, *args, **kwargs)
 
                 if code == 200:
-                    get_items = data.get("items")
-                    if get_items is not None and isinstance(get_items, list):
-                        return get_items
                     return data
                 elif i == 0:
                     self.raise_for_status(url, code, data)

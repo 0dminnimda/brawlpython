@@ -94,6 +94,10 @@ def iscorofunc(func):
     return asyncio.iscoroutinefunction(func)
 
 
+def iscoro(func):
+    return asyncio.iscoroutine(func)
+
+
 def get_decorator(func):
     if iscorofunc(func):
         return async_cachedmethod
