@@ -9,7 +9,12 @@ from typing import Dict, Union
 __all__ = (
     "make_headers",
     "isiter_noliterals",
+    "isunitlist",
     "same",
+    "check_kwargs",
+    "check_args",
+    "check_params",
+    "_rearrange_params",
     "rearrange_params",
     "multiparams",
     "multiparams_classcache"
@@ -39,19 +44,17 @@ def same(elements):
     return len(elements) == elements.count(elements[0])
 
 
-def check_kwargs(params):
-    units = {}
-    multiples = {}
+def check_kwargs(kwargs):
     lengths = []
-    for key, param in params.items():
+    for key, param in kwargs.items():
         if isiter_noliterals(param):
             if isunitlist(param):
-                units.update({key: param[0]})
+                kwargs[key] = ("u", param[0])
             else:
                 lengths.append(len(param))
-                multiples.update({key: (param)})#iter
+                kwargs[key] = ("m", iter(param))
         else:
-            units.update({key: param})
+            kwargs[key] = ("u", param)
 
     if len(lengths) < 1:
         total_length = 1
@@ -62,22 +65,21 @@ def check_kwargs(params):
 
         total_length = lengths[0]
 
-    return units, multiples, total_length
+    return kwargs, total_length
 
 
-def check_args(params):
-    units = []
-    multiples = []
+def check_args(args):
+    args = list(args)
     lengths = []
-    for param in params:
+    for i, param in enumerate(args):
         if isiter_noliterals(param):
             if isunitlist(param):
-                units.append(param[0])
+                args[i] = ("u", param[0])
             else:
                 lengths.append(len(param))
-                multiples.append((param))#iter
+                args[i] = ("m", iter(param)) 
         else:
-            units.append(param)
+            args[i] = ("u", param)
 
     if len(lengths) < 1:
         total_length = 1
@@ -88,44 +90,37 @@ def check_args(params):
 
         total_length = lengths[0]
 
-    return units, multiples, total_length
+    return args, total_length
 
 
 def check_params(args, kwargs):
-    unit_args, multiple_args, args_length = check_args(args)
-    unit_kwargs, multiple_kwargs, kwargs_length = check_kwargs(kwargs)
+    all_args, args_length = check_args(args)
+    all_kwargs, kwargs_length = check_kwargs(kwargs)
 
     if args_length != kwargs_length:
         raise ValueError(
             "All allowed iterable parameters must be of the same length.")
-    else:
-        length = args_length
 
-    return unit_args, unit_kwargs, multiple_args, multiple_kwargs, length
+    return all_args, all_kwargs, args_length
 
 
 def _rearrange_params(args, kwargs):
-    *checked, length = check_params(args, kwargs)
+    all_args, all_kwargs, length = check_params(args, kwargs)
 
-    unit_args, unit_kwargs, multiple_args, multiple_kwargs = checked
+    for _ in range(length):
+        new_args = []
+        for (type_, val) in all_args:
+            if type_ == "m":
+                val = next(val)
+            new_args.append(val)
 
-    a, k = zip(*multiple_args), zip(*multiple_kwargs)
+        new_kwargs = {}
+        for key, (type_, val) in all_kwargs.items():
+            if type_ == "m":
+                val = next(val)
+            new_kwargs[key] = val
 
-    for unit_a, unit_kw, multiple_a, multiple_kw in zip(*checked):
-        pass
-
-    for i, param in enumerate(params):
-        if not isiter_noliterals(param):
-            params[i] = [param] * total_length
-
-    pars = params[:len(args)]
-
-    kwpars = zip(
-        [tuple(kwargs.keys())] * total_length,
-        zip(*params[len(args):])
-    )
-
-    return list(zip(zip(*pars), [dict(i) for i in kwpars]))
+        yield new_args, new_kwargs
 
 
 def rearrange_params(*args, **kwargs):
@@ -145,35 +140,26 @@ def multiparams(func):
     return update_wrapper(wrapper, func)
 
 
-def multiparams_classcache(f):
-    wrap = somecachedmethod(f)
-    if iscorofunc(f):
-        async def wrapper(*args, **kwargs):
-            params = rearrange_params(args, kwargs)
-            tasks = [ensure(f(*a, **kw)) for a, kw in params]
-            return await gather(*tasks)
-
+def multiparams_classcache(func):
+    wrap = somecachedmethod(func)
+    if iscorofunc(func):
         async def wrapper(self, *args, **kwargs):
             cache = self.cache
             if cache is None:
-                params = rearrange_params(*args, **kwargs)
-                tasks = [ensure(f(self, *a, **kw)) for a, kw in params]
-                res = f(self, *args, **kwargs)
+                params = rearrange_params(self, *args, **kwargs)
+                tasks = [ensure(func(*a, **kw)) for a, kw in params]
             else:
-                params = rearrange_params(cache, *args, **kwargs)
-                tasks = [ensure(f(self, cache, *a, **kw)) for a, kw in params]
-                res = wrap(self, cache, *args, **kwargs)
-            return await res
+                params = rearrange_params(self, cache, *args, **kwargs)
+                tasks = [ensure(wrap(*a, **kw)) for a, kw in params]
+            return await gather(*tasks)
     else:
         def wrapper(self, *args, **kwargs):
             cache = self.cache
             if cache is None:
-                res = f(self, *args, **kwargs)
+                params = rearrange_params(self, *args, **kwargs)
+                res = [func(*a, **kw) for a, kw in params]
             else:
-                res = wrap(self, cache, *args, **kwargs)
+                params = rearrange_params(self, cache, *args, **kwargs)
+                res = [wrap(*a, **kw) for a, kw in params]
             return res
-
-        def wrapper(*args, **kwargs):
-            params = rearrange_params(args, kwargs)
-            return [f(*a, **kw) for a, kw in params]
-    return update_wrapper(wrapper, f)
+    return update_wrapper(wrapper, func)

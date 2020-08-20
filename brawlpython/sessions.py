@@ -5,7 +5,7 @@ import asyncio
 from cachetools import TTLCache
 from requests import Session
 
-from .api_toolkit import make_headers, multiparams
+from .api_toolkit import make_headers, multiparams, multiparams_classcache
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import classcache, somecachedmethod
 from .exceptions import WITH_CODE, UnexpectedResponseCode
@@ -109,7 +109,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             return get_items
         return data
 
-    @multiparams
+    @multiparams_classcache
     async def _get_jsons(self, urls: URLS) -> L:
         # in reality only one url and use_cache
         return await self.get_json(urls)
