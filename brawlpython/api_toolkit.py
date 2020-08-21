@@ -62,16 +62,7 @@ def check_kwargs(kwargs):
         else:
             kwargs[key] = ("u", param)
 
-    if len(lengths) < 1:
-        total_length = 1
-    else:
-        if not same(lengths):
-            raise ValueError(
-                "All allowed iterable parameters must be of the same length.")
-
-        total_length = lengths[0]
-
-    return kwargs, total_length
+    return kwargs, lengths
 
 
 def check_args(args):
@@ -83,9 +74,18 @@ def check_args(args):
                 args[i] = ("u", param[0])
             else:
                 lengths.append(len(param))
-                args[i] = ("m", iter(param)) 
+                args[i] = ("m", iter(param))
         else:
             args[i] = ("u", param)
+
+    return args, lengths
+
+
+def check_params(args, kwargs):
+    all_args, args_lengths = check_args(args)
+    all_kwargs, kwargs_lengths = check_kwargs(kwargs)
+
+    lengths = args_lengths + kwargs_lengths
 
     if len(lengths) < 1:
         total_length = 1
@@ -96,18 +96,7 @@ def check_args(args):
 
         total_length = lengths[0]
 
-    return args, total_length
-
-
-def check_params(args, kwargs):
-    all_args, args_length = check_args(args)
-    all_kwargs, kwargs_length = check_kwargs(kwargs)
-
-    if args_length != kwargs_length:
-        raise ValueError(
-            "All allowed iterable parameters must be of the same length.")
-
-    return all_args, all_kwargs, args_length
+    return all_args, all_kwargs, total_length
 
 
 def _rearrange_params(args, kwargs):
@@ -155,7 +144,7 @@ def multiparams_classcache(func):
                 params = rearrange_params(self, *args, **kwargs)
                 tasks = [ensure(func(*a, **kw)) for a, kw in params]
             else:
-                params = rearrange_params(self, cache, args, kwargs)
+                params = rearrange_params(self, [cache], *args, **kwargs)
                 tasks = [ensure(wrap(*a, **kw)) for a, kw in params]
             return await gather(*tasks)
     else:
@@ -165,7 +154,7 @@ def multiparams_classcache(func):
                 params = rearrange_params(self, *args, **kwargs)
                 res = [func(*a, **kw) for a, kw in params]
             else:
-                params = rearrange_params(self, cache, args, kwargs)
+                params = rearrange_params(self, [cache], *args, **kwargs)
                 res = [wrap(*a, **kw) for a, kw in params]
             return res
     return update_wrapper(wrapper, func)

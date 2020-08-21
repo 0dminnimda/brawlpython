@@ -14,7 +14,7 @@ token = config["DEFAULT"]["API_KEY"]
 
 
 @pytest.yield_fixture
-def create_client():
+def factory():
     client = None
 
     def maker(*args, **kwargs):
@@ -29,8 +29,8 @@ def create_client():
 
 
 @pytest.yield_fixture
-def client(create_client):
-    return create_client(token, cache_ttl=1)
+def client(factory):
+    return factory(token, cache_ttl=1)
 
 
 def test_sync_init():

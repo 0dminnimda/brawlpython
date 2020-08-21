@@ -3,6 +3,7 @@
 from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
 from cachetools import TTLCache
+from collections import defaultdict
 from functools import update_wrapper
 from requests import Session
 
@@ -53,32 +54,71 @@ def _raise_for_status(self, url: str, code: int,
             url, code, data.get("reason", ""), data.get("message", ""))
 
 
-def decor_get(func):
-    if iscorofunc:
-        async def wrapper(self, url: Any, *args: Any, **kwargs: Any) -> Any:
-            for i in self._attempts:
-                code, data = await func(self, url, *args, **kwargs)
+def retry_to_get_data(multi):
+    def decorator(func):
+        rte = RuntimeError(
+            "self._attempts argument was changed"
+            " causing it to work incorrectly")
+        coro = iscorofunc(func)
 
-                if code == 200:
-                    return data
-                elif i == 0:
-                    self.raise_for_status(url, code, data)
-            raise RuntimeError(
-                "self._attempts argument was changed"
-                " causing it to work incorrectly")
-    else:
-        def wrapper(self, url: Any, *args: Any, **kwargs: Any) -> Any:
-            for i in self._attempts:
-                code, data = func(self, url, *args, **kwargs)
+        if coro and multi:
+            async def wrapper(self, urls: URLS) -> Any:
+                no_resp = list(urls)
+                good_resps = defaultdict(list)
+                for i in self._attempts:
+                    res = await func(self, no_resp)
+                    for url, (code, data) in zip(urls, res):
+                        if code == 200:
+                            good_resps[url].append(data)
+                            no_resp.remove(url)
+                        elif i == 0:
+                            self.raise_for_status(url, code, data)
 
-                if code == 200:
-                    return data
-                elif i == 0:
-                    self.raise_for_status(url, code, data)
-            raise RuntimeError(
-                "self._attempts argument was changed"
-                " causing it to work incorrectly")
-    return update_wrapper(wrapper, func)
+                    if len(no_resp) == 0:
+                        return [good_resps[url].pop(0) for url in urls]
+
+                raise rte
+        elif not coro and multi:
+            def wrapper(self, url: URLS) -> Any:
+                no_resp = list(urls)
+                good_resps = defaultdict(list)
+                for i in self._attempts:
+                    res = func(self, no_resp)
+                    for url, (code, data) in zip(urls, res):
+                        if code == 200:
+                            good_resps[url].append(data)
+                            no_resp.remove(url)
+                        elif i == 0:
+                            self.raise_for_status(url, code, data)
+
+                    if len(no_resp) == 0:
+                        return [good_resps[url].pop(0) for url in urls]
+
+                raise rte
+        elif coro and not multi:
+            async def wrapper(self, url: str) -> Any:
+                for i in self._attempts:
+                    code, data = await func(self, url)
+
+                    if code == 200:
+                        return data
+                    elif i == 0:
+                        self.raise_for_status(url, code, data)
+
+                raise rte
+        else:
+            def wrapper(self, url: str) -> Any:
+                for i in self._attempts:
+                    code, data = func(self, url)
+
+                    if code == 200:
+                        return data
+                    elif i == 0:
+                        self.raise_for_status(url, code, data)
+
+                raise rte
+        return update_wrapper(wrapper, func)
+    return decorator
 
 
 class AsyncSession(AsyncInitObject, AsyncWith):
@@ -141,14 +181,14 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     _cached_get = classcache(_simple_get)
     _multi_get = multiparams_classcache(_simple_get)
 
-    _get = decor_get(_cached_get)
-    _gets = decor_get(_multi_get)
+    _get = retry_to_get_data(False)(_cached_get)
+    _gets = retry_to_get_data(True)(_multi_get)
 
     async def get(self, url: str) -> R:
         return await self._get(url)
 
     async def gets(self, urls: URLS) -> L:
-        return await self._gets(url)
+        return await self._gets(urls)
 
 
 class SyncSession(SyncWith):
@@ -204,11 +244,11 @@ class SyncSession(SyncWith):
     _cached_get = classcache(_simple_get)
     _multi_get = multiparams_classcache(_simple_get)
 
-    _get = decor_get(_cached_get)
-    _gets = decor_get(_multi_get)
+    _get = retry_to_get_data(False)(_cached_get)
+    _gets = retry_to_get_data(True)(_multi_get)
 
     def get(self, url: str) -> R:
         return self._get(url)
 
     def gets(self, urls: URLS) -> L:
-        return self._gets(url)
+        return self._gets(urls)

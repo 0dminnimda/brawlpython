@@ -55,18 +55,18 @@ async def test_closing(client):
 
 
 async def test_cache(client):
-    responses = [await client._get(url_uuid) for _ in range(2)]
+    responses = [await client.get(url_uuid) for _ in range(2)]
     assert same(responses)
 
     await asyncio.sleep(2)
 
-    assert await client._get(url_uuid) != responses[0]
+    assert await client.get(url_uuid) != responses[0]
 
 
 async def test_no_cache(factory):
     client = await factory(token, use_cache=False)
 
-    assert unique([await client._get(url_uuid) for _ in range(2)])
+    assert unique([await client.get(url_uuid) for _ in range(2)])
 
 
 if __name__ == "__main__":
