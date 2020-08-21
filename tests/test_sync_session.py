@@ -62,6 +62,8 @@ def test_no_cache(factory):
 
     assert unique([client.get(url_uuid) for _ in range(2)])
 
+    assert unique(client.gets([url_uuid] * 2))
+
 
 if __name__ == "__main__":
     import run_tests

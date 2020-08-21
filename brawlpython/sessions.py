@@ -79,7 +79,7 @@ def retry_to_get_data(multi):
 
                 raise rte
         elif not coro and multi:
-            def wrapper(self, url: URLS) -> Any:
+            def wrapper(self, urls: URLS) -> Any:
                 no_resp = list(urls)
                 good_resps = defaultdict(list)
                 for i in self._attempts:
