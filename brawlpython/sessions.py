@@ -7,9 +7,9 @@ from collections import defaultdict
 from functools import update_wrapper
 from requests import Session
 
-from .api_toolkit import make_headers, multiparams, multiparams_classcache
+from .api_toolkit import make_headers, multiparams
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
-from .cache_utils import classcache, somecachedmethod, iscorofunc
+from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .typedefs import URLS, L, R
 
@@ -31,7 +31,6 @@ from typing import (
 )
 
 import orjson
-import time
 
 __all__ = (
     "AsyncSession",
@@ -44,81 +43,163 @@ __all__ = (
 # has nothing to do with the desired behavior
 
 def _raise_for_status(self, url: str, code: int,
-                      data: Mapping[str, Any]) -> None:
+                      data: Union[Mapping[str, Any], str]) -> None:
+
+    if isinstance(data, str):
+        reason, message = "", data
+    else:
+        reason, message = data.get("reason", ""), data.get("message", "")
 
     excp = next(filter(lambda x: x.code == code, WITH_CODE), None)
     if excp is not None:
-        raise excp(url, data.get("reason", ""), data.get("message", ""))
+        raise excp(url, reason, message)
     else:
-        raise UnexpectedResponseCode(
-            url, code, data.get("reason", ""), data.get("message", ""))
+        raise UnexpectedResponseCode(url, code, reason, message)
 
 
-def retry_to_get_data(multi):
+def mix_all_gets(multi):
     def decorator(func):
-        rte = RuntimeError(
-            "self._attempts argument was changed"
-            " causing it to work incorrectly")
         coro = iscorofunc(func)
 
-        if coro and multi:
-            async def wrapper(self, urls: URLS) -> Any:
-                no_resp = list(urls)
-                good_resps = defaultdict(list)
-                for i in self._attempts:
-                    res = await func(self, no_resp)
-                    for url, (code, data) in zip(urls, res):
-                        if code == 200:
-                            good_resps[url].append(data)
-                            no_resp.remove(url)
-                        elif i == 0:
-                            self.raise_for_status(url, code, data)
+        _cached_get = somecachedmethod(func)
 
-                    if len(no_resp) == 0:
-                        return [good_resps[url].pop(0) for url in urls]
+        if coro:
+            async def no_cache(self, *args, **kwrags):
+                self._last_urls.append(args[0])
+                res = await func(self, *args, **kwrags)
+                self._last_reqs.append((args, kwrags, res))
 
-                raise rte
-        elif not coro and multi:
-            def wrapper(self, urls: URLS) -> Any:
-                no_resp = list(urls)
-                good_resps = defaultdict(list)
-                for i in self._attempts:
-                    res = func(self, no_resp)
-                    for url, (code, data) in zip(urls, res):
-                        if code == 200:
-                            good_resps[url].append(data)
-                            no_resp.remove(url)
-                        elif i == 0:
-                            self.raise_for_status(url, code, data)
-
-                    if len(no_resp) == 0:
-                        return [good_resps[url].pop(0) for url in urls]
-
-                raise rte
-        elif coro and not multi:
-            async def wrapper(self, url: str) -> Any:
-                for i in self._attempts:
-                    code, data = await func(self, url)
-
-                    if code == 200:
-                        return data
-                    elif i == 0:
-                        self.raise_for_status(url, code, data)
-
-                raise rte
+            async def _cache(self, *args, **kwrags):
+                self._last_urls.append(args[0])
+                res = await _cached_get(self, *args, **kwrags)
+                self._last_reqs.append((args, kwrags, res))
         else:
-            def wrapper(self, url: str) -> Any:
-                for i in self._attempts:
-                    code, data = func(self, url)
+            def no_cache(self, *args, **kwrags):
+                self._last_urls.append(args[0])
+                res = func(self, *args, **kwrags)
+                self._last_reqs.append((args, kwrags, res))
 
+            def _cache(self, *args, **kwrags):
+                self._last_urls.append(args[0])
+                res = _cached_get(self, *args, **kwrags)
+                self._last_reqs.append((args, kwrags, res))
+
+        _multi_get = multiparams(no_cache)
+        _cached_multi_get = multiparams(_cache)
+
+        if coro and multi:
+            async def wrapper(self, *args: Any, **kwrags: Any):
+                if self.can_use_cache:
+                    await _cached_multi_get(self, *args, **kwrags)
+                else:
+                    await _multi_get(self, *args, **kwrags)
+        elif not coro and multi:
+            def wrapper(self, *args: Any, **kwrags: Any):
+                if self.can_use_cache:
+                    _cached_multi_get(self, *args, **kwrags)
+                else:
+                    _multi_get(self, *args, **kwrags)
+        elif coro and not multi:
+            async def wrapper(self, *args: Any, **kwrags: Any):
+                if self.can_use_cache:
+                    await _cache(self, *args, **kwrags)
+                else:
+                    await no_cache(self, *args, **kwrags)
+        else:
+            def wrapper(self, *args: Any, **kwrags: Any):
+                if self.can_use_cache:
+                    _cache(self, *args, **kwrags)
+                else:
+                    no_cache(self, *args, **kwrags)
+        return wrapper
+    return decorator
+
+
+def retry_to_get_data(func):
+    rte = RuntimeError(
+        "self._attempts argument was changed"
+        " causing it to work incorrectly")
+
+    if iscorofunc(func):
+        async def wrapper(self, *args, **kwrags):
+            good_resps = defaultdict(list)
+            d_kwargs = defaultdict(list)
+            d_args = defaultdict(list)
+            for i in self._attempts:
+                if len(self._last_reqs) == 0:
+                    in_args, in_kwrags = args, kwrags
+                else:
+                    in_args, in_kwrags = d_args.values(), d_kwargs
+
+                self._last_reqs.clear()
+                self._last_urls.clear()
+
+                await func(self, *in_args, **in_kwrags)
+
+                d_args.clear()
+                d_kwargs.clear()
+
+                for a, kw, (code, data) in self._last_reqs:
+                    url = a[0]
                     if code == 200:
-                        return data
+                        good_resps[url].append(data)
                     elif i == 0:
                         self.raise_for_status(url, code, data)
+                    else:
+                        for key, val in kw:
+                            d_kwargs[key].append(val)
 
-                raise rte
-        return update_wrapper(wrapper, func)
-    return decorator
+                        for i, val in enumerate(a):
+                            d_args[i].append(val)
+
+                if len(d_args) == len(d_kwargs) == 0:
+                    ret = [good_resps[url].pop(0) for url in self._last_urls]
+                    self._last_reqs.clear()
+                    self._last_urls.clear()
+                    return ret
+
+            raise rte
+    else:
+        def wrapper(self, *args, **kwrags):
+            good_resps = defaultdict(list)
+            d_kwargs = defaultdict(list)
+            d_args = defaultdict(list)
+            for i in self._attempts:
+                if len(self._last_reqs) == 0:
+                    in_args, in_kwrags = args, kwrags
+                else:
+                    in_args, in_kwrags = d_args.values(), d_kwargs
+
+                self._last_reqs.clear()
+                self._last_urls.clear()
+
+                func(self, *in_args, **in_kwrags)
+
+                d_args.clear()
+                d_kwargs.clear()
+
+                for a, kw, (code, data) in self._last_reqs:
+                    url = a[0]
+                    if code == 200:
+                        good_resps[url].append(data)
+                    elif i == 0:
+                        self.raise_for_status(url, code, data)
+                    else:
+                        for key, val in kw:
+                            d_kwargs[key].append(val)
+
+                        for i, val in enumerate(a):
+                            d_args[i].append(val)
+
+                if len(d_args) == len(d_kwargs) == 0:
+                    ret = [good_resps[url].pop(0) for url in self._last_urls]
+                    self._last_reqs.clear()
+                    self._last_urls.clear()
+                    return ret
+
+            raise rte
+
+    return update_wrapper(wrapper, func)
 
 
 class AsyncSession(AsyncInitObject, AsyncWith):
@@ -149,6 +230,9 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         else:
             self._attempts = (0)
 
+        self._last_reqs = []
+        self._last_urls = []
+
     async def close(self) -> None:
         """Close underlying connector.
         Release all acquired resources.
@@ -169,26 +253,28 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     raise_for_status = _raise_for_status
 
-    async def _simple_get(self, url: str) -> Tuple[int, str]:
-        # time_start = time.time()
+    @property
+    def can_use_cache(self) -> bool:
+        return self.use_cache and isinstance(self.cache, TTLCache)
+
+    async def _simple_get(self, url: str,
+                          from_json: bool = True) -> Tuple[int, str]:
         async with self.session.get(url) as response:
-            # time_end = time.time()
             code = response.status
-            data = orjson.loads(await response.text())
+            data = await response.text()
+            if from_json:
+                data = orjson.loads(data)
 
-        return code, data  # , time_start, time_end
+        return code, data
 
-    _cached_get = classcache(_simple_get)
-    _multi_get = multiparams_classcache(_simple_get)
+    _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
+    _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
-    _get = retry_to_get_data(False)(_cached_get)
-    _gets = retry_to_get_data(True)(_multi_get)
+    async def get(self, url: str, from_json: bool = True) -> R:
+        return (await self._get(url, from_json))[0]
 
-    async def get(self, url: str) -> R:
-        return await self._get(url)
-
-    async def gets(self, urls: URLS) -> L:
-        return await self._gets(urls)
+    async def gets(self, urls: URLS, from_jsons: bool = True) -> L:
+        return await self._gets(urls, from_jsons)
 
 
 class SyncSession(SyncWith):
@@ -217,6 +303,9 @@ class SyncSession(SyncWith):
         else:
             self._attempts = (0)
 
+        self._last_reqs = []
+        self._last_urls = []
+
     def close(self) -> None:
         """Closes all adapters and as such the session"""
         if not self.closed:
@@ -232,23 +321,24 @@ class SyncSession(SyncWith):
 
     raise_for_status = _raise_for_status
 
-    def _simple_get(self, url: str) -> Tuple[int, str]:
-        # time_start = time.time()
+    @property
+    def can_use_cache(self) -> bool:
+        return self.use_cache and isinstance(self.cache, TTLCache)
+
+    def _simple_get(self, url: str, from_json: bool = True) -> Tuple[int, str]:
         with self.session.get(url, timeout=self.timeout) as response:
-            # time_end = time.time()
             code = response.status_code
-            data = orjson.loads(response.text)
+            data = response.text
+            if from_json:
+                data = orjson.loads(data)
 
-        return code, data  # , time_start, time_end
+        return code, data
 
-    _cached_get = classcache(_simple_get)
-    _multi_get = multiparams_classcache(_simple_get)
+    _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
+    _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
-    _get = retry_to_get_data(False)(_cached_get)
-    _gets = retry_to_get_data(True)(_multi_get)
+    def get(self, url: str, from_json: bool = True) -> R:
+        return self._get(url, from_json)[0]
 
-    def get(self, url: str) -> R:
-        return self._get(url)
-
-    def gets(self, urls: URLS) -> L:
-        return self._gets(urls)
+    def gets(self, urls: URLS, from_jsons: bool = True) -> L:
+        return self._gets(urls, from_jsons)

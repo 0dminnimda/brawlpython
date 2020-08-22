@@ -23,6 +23,12 @@ class ClientResponseError(ClientException):
         self.reason = reason
         self.message = message
 
+    def __repr__(self):
+        return "{0.__name__}({0.url}, {0.reason}, {0.message})".format(self)
+
+    def __str__(self):
+        return "({0.url} -> {0.code}, {0.reason}, {0.message})".format(self)
+
 
 class UnexpectedResponseCode(ClientResponseError):
     """Occurs if the response code was not described
@@ -32,6 +38,11 @@ class UnexpectedResponseCode(ClientResponseError):
     def __init__(self, url: str, code: int, **kwargs):
         self.code = code
         super().__init__(url, **kwargs)
+
+    def __repr__(self):
+        return (
+            "{0.__name__}({0.url}, {0.code}, "
+            "{0.reason}, {0.message})").format(self)
 
 
 class BadRequest(ClientResponseError):

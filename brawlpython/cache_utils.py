@@ -24,9 +24,9 @@ def async_cachedmethod(key=keys.hashkey, lock=None):
     """
     def decorator(method):
         if lock is None:
-            async def wrapper(self, cache, *args, **kwargs):
-                cache = self.cache
+            async def wrapper(self, *args, **kwargs):
                 k = key(*args, **kwargs)
+                cache = self.cache
                 get_k = cache.get(k, NaN)
                 if get_k != NaN:
                     return get_k
@@ -37,9 +37,9 @@ def async_cachedmethod(key=keys.hashkey, lock=None):
                     pass  # value too large
                 return v
         else:
-            async def wrapper(self, cache, *args, **kwargs):
-                cache = self.cache
+            async def wrapper(self, *args, **kwargs):
                 k = key(*args, **kwargs)
+                cache = self.cache
                 with lock(self):
                     get_k = cache.get(k, NaN)
                 if get_k != NaN:
@@ -61,8 +61,9 @@ def cachedmethod(key=keys.hashkey, lock=None):
     """
     def decorator(method):
         if lock is None:
-            def wrapper(self, cache, *args, **kwargs):
+            def wrapper(self, *args, **kwargs):
                 k = key(*args, **kwargs)
+                cache = self.cache
                 get_k = cache.get(k, NaN)
                 if get_k != NaN:
                     return get_k
@@ -73,8 +74,9 @@ def cachedmethod(key=keys.hashkey, lock=None):
                     pass  # value too large
                 return v
         else:
-            def wrapper(self, cache, *args, **kwargs):
+            def wrapper(self, *args, **kwargs):
                 k = key(*args, **kwargs)
+                cache = self.cache
                 with lock(self):
                     get_k = cache.get(k, NaN)
                 if get_k != NaN:
@@ -118,7 +120,7 @@ def classcache(func):
             if cache is None:
                 res = func(self, *args, **kwargs)
             else:
-                res = wrap(self, cache, *args, **kwargs)
+                res = wrap(self, *args, **kwargs)
             return await res
     else:
         def wrapper(self, *args, **kwargs):
@@ -126,6 +128,6 @@ def classcache(func):
             if cache is None:
                 res = func(self, *args, **kwargs)
             else:
-                res = wrap(self, cache, *args, **kwargs)
+                res = wrap(self, *args, **kwargs)
             return res
     return update_wrapper(wrapper, func)
