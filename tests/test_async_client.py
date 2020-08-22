@@ -11,7 +11,7 @@ import pytest
 url_uuid = "http://httpbin.org/uuid"
 
 config = ConfigObj("config.ini")
-token = config["DEFAULT"]["API_KEY"]
+token = config["DEFAULT"].get("API_KEY")
 
 
 @pytest.fixture

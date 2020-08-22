@@ -14,7 +14,7 @@ url_uuid = "http://httpbin.org/uuid"
 # @pytest.yield_fixture
 # def token():
 config = ConfigObj("config.ini")
-token = config["DEFAULT"]["API_KEY"]
+token = config["DEFAULT"].get("API_KEY")
 
 
 @pytest.fixture

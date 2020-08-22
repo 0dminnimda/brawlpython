@@ -133,26 +133,3 @@ def multiparams(func):
             params = _rearrange_params(args, kwargs)
             return [func(*a, **kw) for a, kw in params]
     return update_wrapper(wrapper, func)
-
-
-def multiparams_classcache(func):
-    wrap = somecachedmethod(func)
-    if iscorofunc(func):
-        async def wrapper(self, *args, **kwargs):
-            cache = self.cache
-            params = rearrange_params(self, *args, **kwargs)
-            if cache is None:
-                tasks = [ensure(func(*a, **kw)) for a, kw in params]
-            else:
-                tasks = [ensure(wrap(*a, **kw)) for a, kw in params]
-            return await gather(*tasks)
-    else:
-        def wrapper(self, *args, **kwargs):
-            cache = self.cache
-            params = rearrange_params(self, *args, **kwargs)
-            if cache is None:
-                res = [func(*a, **kw) for a, kw in params]
-            else:
-                res = [wrap(*a, **kw) for a, kw in params]
-            return res
-    return update_wrapper(wrapper, func)

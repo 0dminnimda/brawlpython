@@ -8,14 +8,11 @@ __all__ = (
 )
 
 
-A = TypeVar('A', bound='AsyncInitObject')
-
-
 class AsyncInitObject(object):
     # Inheriting this class allows you to define an async __init__.
     # So you can create objects by doing something like `await MyClass(params)`
 
-    async def __new__(cls: Type[A], *args: Any, **kwargs: Any) -> A:
+    async def __new__(cls, *args: Any, **kwargs: Any) -> "AsyncInitObject":
         instance = super().__new__(cls)
         await instance.__init__(*args, **kwargs)
         return instance
@@ -45,6 +42,9 @@ class AsyncWith(object):
                         exc_tb: Optional[TracebackType]) -> None:
         await self.close()
 
+    async def close(self):
+        self.test_close = True
+
 
 class SyncWith(object):
     def __enter__(self) -> "SyncWith":
@@ -65,3 +65,6 @@ class SyncWith(object):
                         exc_tb: Optional[TracebackType]) -> None:
         # __aexit__ should exist in pair with __aenter__ but never executed
         pass
+
+    def close(self):
+        self.test_close = True

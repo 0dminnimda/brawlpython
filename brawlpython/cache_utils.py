@@ -110,24 +110,3 @@ def get_decorator(func):
 def somecachedmethod(func):
     # key = partial(keys.hashkey, func.__name__)
     return get_decorator(func)()(func)  # key=key
-
-
-def classcache(func):
-    wrap = somecachedmethod(func)
-    if iscorofunc(func):
-        async def wrapper(self, *args, **kwargs):
-            cache = self.cache
-            if cache is None:
-                res = func(self, *args, **kwargs)
-            else:
-                res = wrap(self, *args, **kwargs)
-            return await res
-    else:
-        def wrapper(self, *args, **kwargs):
-            cache = self.cache
-            if cache is None:
-                res = func(self, *args, **kwargs)
-            else:
-                res = wrap(self, *args, **kwargs)
-            return res
-    return update_wrapper(wrapper, func)
