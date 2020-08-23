@@ -7,7 +7,7 @@ from collections import defaultdict
 from functools import update_wrapper
 from requests import Session
 
-from .api_toolkit import make_headers, multiparams
+from .api_toolkit import default_headers, multiparams
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
@@ -203,13 +203,13 @@ def retry_to_get_data(func):
 
 
 class AsyncSession(AsyncInitObject, AsyncWith):
-    async def __init__(self, token: str, trust_env: bool = True,
+    async def __init__(self, trust_env: bool = True,
                        cache_ttl: Union[int, float] = 60,
                        cache_limit: int = 1024,
                        use_cache: bool = True,
                        timeout: Union[int, float] = 30,
                        repeat_failed: int = 3) -> None:
-        headers = make_headers(token)
+        headers = default_headers()
         loop = asyncio.get_event_loop()
         self.session = ClientSession(
             loop=loop,
@@ -258,8 +258,9 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         return self.use_cache and isinstance(self.cache, TTLCache)
 
     async def _simple_get(self, url: str,
-                          from_json: bool = True) -> Tuple[int, str]:
-        async with self.session.get(url) as response:
+                          from_json: bool = True,
+                          headers: Dict[str, str] = {}) -> Tuple[int, str]:
+        async with self.session.get(url, headers=headers) as response:
             code = response.status
             data = await response.text()
             if from_json:
@@ -270,22 +271,25 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
     _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
-    async def get(self, url: str, from_json: bool = True) -> R:
-        return (await self._get(url, from_json))[0]
+    async def get(self, url: str, from_json: bool = True,
+                  headers: Dict[str, str] = {}) -> R:
+        return (await self._get(url, from_json, headers))[0]
 
-    async def gets(self, urls: URLS, from_jsons: bool = True) -> L:
-        return await self._gets(urls, from_jsons)
+    async def gets(
+            self, urls: URLS, from_jsons: bool = True,
+            headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
+        return await self._gets(urls, from_jsons, headers)
 
 
 class SyncSession(SyncWith):
-    def __init__(self, token: str, trust_env: bool = True,
+    def __init__(self, trust_env: bool = True,
                  cache_ttl: Union[int, float] = 60,
                  cache_limit: int = 1024, use_cache: bool = True,
                  timeout: Union[int, float] = 30,
                  repeat_failed: int = 3) -> None:
         self._closed = False
 
-        headers = make_headers(token)
+        headers = default_headers()
         self.session = Session()
         self.session.trust_env = trust_env
         self.session.headers.update(headers)
@@ -325,8 +329,10 @@ class SyncSession(SyncWith):
     def can_use_cache(self) -> bool:
         return self.use_cache and isinstance(self.cache, TTLCache)
 
-    def _simple_get(self, url: str, from_json: bool = True) -> Tuple[int, str]:
-        with self.session.get(url, timeout=self.timeout) as response:
+    def _simple_get(self, url: str, from_json: bool = True,
+                    headers: Dict[str, str] = {}) -> Tuple[int, str]:
+        with self.session.get(
+                url, timeout=self.timeout, headers=headers) as response:
             code = response.status_code
             data = response.text
             if from_json:
@@ -337,8 +343,10 @@ class SyncSession(SyncWith):
     _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
     _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
-    def get(self, url: str, from_json: bool = True) -> R:
-        return self._get(url, from_json)[0]
+    def get(self, url: str, from_json: bool = True,
+            headers: Dict[str, str] = {}) -> R:
+        return self._get(url, from_json, headers)[0]
 
-    def gets(self, urls: URLS, from_jsons: bool = True) -> L:
-        return self._gets(urls, from_jsons)
+    def gets(self, urls: URLS, from_jsons: bool = True,
+             headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
+        return self._gets(urls, from_jsons, headers)

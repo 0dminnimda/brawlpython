@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from . import __version__, __name__
 from .cache_utils import somecachedmethod, iscorofunc
 from asyncio import ensure_future as ensure, gather
@@ -7,6 +9,7 @@ import sys
 from typing import Dict, Union
 
 __all__ = (
+    "default_headers",
     "make_headers",
     "isiter_noliterals",
     "isunitlist",
@@ -22,15 +25,18 @@ __all__ = (
 )
 
 
-def make_headers(token: str) -> Dict[str, str]:
+def default_headers() -> Dict[str, str]:
     return {
         "dnt": "1",
-        "authorization": f"Bearer {token}",
         "user-agent": f"{__name__}/{__version__} (Python {sys.version[:5]})",
         "accept-encoding": ", ".join(("gzip", "deflate")),
         "cache-control": "no-cache",
         "pragma": "no-cache",
     }
+
+
+def make_headers(token: str) -> Dict[str, str]:
+    return {"authorization": f"Bearer {token}"}
 
 
 def isiter_noliterals(obj):

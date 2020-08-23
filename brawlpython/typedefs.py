@@ -1,19 +1,6 @@
-from typing import (
-    Any,
-    Coroutine,
-    Dict,
-    Generator,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+# -*- coding: utf-8 -*-
+
+from typing import TypeVar
 
 __all__ = (
     "R",

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import asyncio
 from cachetools import keys, Cache
 from functools import wraps, partial, update_wrapper
