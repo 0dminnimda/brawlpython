@@ -30,7 +30,7 @@ def factory():
 
 @pytest.yield_fixture
 def client(factory):
-    return factory(token, cache_ttl=1)
+    return factory(token)
 
 
 def test_sync_init():
@@ -48,7 +48,7 @@ def test_closing(client):
         assert client.closed
 
 
-def test_cache(client):
+def no_test_cache(client):
     responses = [client._get(url_uuid) for _ in range(2)]
     assert same(responses)
 
@@ -57,7 +57,7 @@ def test_cache(client):
     assert client._get(url_uuid) != responses[0]
 
 
-def test_no_cache(factory):
+def no_test_no_cache(factory):
     client = factory(token, use_cache=False)
 
     assert unique([client._get(url_uuid) for _ in range(2)])

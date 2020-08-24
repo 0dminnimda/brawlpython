@@ -7,7 +7,7 @@ from collections import defaultdict
 from functools import update_wrapper
 from requests import Session
 
-from .api_toolkit import default_headers, multiparams
+from .api_toolkit import default_headers, multiparams, isiter_noliterals, ismapping
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
@@ -46,9 +46,11 @@ def _raise_for_status(self, url: str, code: int,
                       data: Union[Mapping[str, Any], str]) -> None:
 
     if isinstance(data, str):
-        reason, message = "", data
+        reason = "without a reason"
+        message = data if len(data) > 0 else "no message"
     else:
-        reason, message = data.get("reason", ""), data.get("message", "")
+        reason = data.get("reason", "without a reason")
+        message = data.get("message", "no message")
 
     excp = next(filter(lambda x: x.code == code, WITH_CODE), None)
     if excp is not None:
@@ -146,7 +148,7 @@ def retry_to_get_data(func):
                     elif i == 0:
                         self.raise_for_status(url, code, data)
                     else:
-                        for key, val in kw:
+                        for key, val in kw.items():
                             d_kwargs[key].append(val)
 
                         for i, val in enumerate(a):
@@ -202,6 +204,16 @@ def retry_to_get_data(func):
     return update_wrapper(wrapper, func)
 
 
+def headers_handler(self, headers):
+    if not self.can_use_cache:
+        return headers
+
+    if isiter_noliterals(headers) and not ismapping(headers):
+        return [tuple(zip(headers.items())) for header in headers]
+    else:
+        return tuple(zip(headers.items()))
+
+
 class AsyncSession(AsyncInitObject, AsyncWith):
     async def __init__(self, trust_env: bool = True,
                        cache_ttl: Union[int, float] = 60,
@@ -223,7 +235,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
         else:
             self.cache = None
-        self.use_cache = use_cache
+        self._use_cache = use_cache
 
         if repeat_failed > 1:
             self._attempts = range(repeat_failed - 1, -1, -1)
@@ -255,12 +267,12 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     @property
     def can_use_cache(self) -> bool:
-        return self.use_cache and isinstance(self.cache, TTLCache)
+        return self._use_cache and isinstance(self.cache, TTLCache)
 
-    async def _simple_get(self, url: str,
-                          from_json: bool = True,
-                          headers: Dict[str, str] = {}) -> Tuple[int, str]:
-        async with self.session.get(url, headers=headers) as response:
+    async def _simple_get(
+            self, url: str, from_json: bool = True,
+            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, str]:
+        async with self.session.get(url, headers=dict(headers)) as response:
             code = response.status
             data = await response.text()
             if from_json:
@@ -273,12 +285,16 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     async def get(self, url: str, from_json: bool = True,
                   headers: Dict[str, str] = {}) -> R:
-        return (await self._get(url, from_json, headers))[0]
+        return (await self._get(
+            url, from_json=from_json,
+            headers=headers_handler(self, headers)))[0]
 
     async def gets(
             self, urls: URLS, from_jsons: bool = True,
             headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
-        return await self._gets(urls, from_jsons, headers)
+        return await self._gets(
+            urls, from_json=from_jsons,
+            headers=headers_handler(self, headers))
 
 
 class SyncSession(SyncWith):
@@ -298,7 +314,7 @@ class SyncSession(SyncWith):
             self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
         else:
             self.cache = None
-        self.use_cache = use_cache
+        self._use_cache = use_cache
 
         self.timeout = timeout
 
@@ -327,12 +343,13 @@ class SyncSession(SyncWith):
 
     @property
     def can_use_cache(self) -> bool:
-        return self.use_cache and isinstance(self.cache, TTLCache)
+        return self._use_cache and isinstance(self.cache, TTLCache)
 
-    def _simple_get(self, url: str, from_json: bool = True,
-                    headers: Dict[str, str] = {}) -> Tuple[int, str]:
+    def _simple_get(
+            self, url: str, from_json: bool = True,
+            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, str]:
         with self.session.get(
-                url, timeout=self.timeout, headers=headers) as response:
+                url, timeout=self.timeout, headers=dict(headers)) as response:
             code = response.status_code
             data = response.text
             if from_json:
@@ -345,8 +362,10 @@ class SyncSession(SyncWith):
 
     def get(self, url: str, from_json: bool = True,
             headers: Dict[str, str] = {}) -> R:
-        return self._get(url, from_json, headers)[0]
+        return self._get(url, from_json=from_json,
+                         headers=headers_handler(self, headers))[0]
 
     def gets(self, urls: URLS, from_jsons: bool = True,
              headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
-        return self._gets(urls, from_jsons, headers)
+        return self._gets(urls, from_json=from_jsons,
+                          headers=headers_handler(self, headers))

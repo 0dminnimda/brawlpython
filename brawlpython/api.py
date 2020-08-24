@@ -21,6 +21,9 @@ class API:
         elif base.startswith("http://"):
             base = "https://" + base[len("http://"):]
 
+        if not base.endswith("/"):
+            base += "/"
+
         if len(set(params) - set(paths)) != 0:
             raise ValueError(
                 "'params.keys()' must be in the 'paths.keys()'")
@@ -75,20 +78,12 @@ official = {
     "battlelog": "players/{tag}/battlelog",
     "clubs": "clubs/{tag}",
     "members": "clubs/{tag}/members",
-    "rankings": "rankings/{code}/{type}/{id_}",
-    "brawlers": "brawlers",
-    "brawler_id": "brawlers/{id_}",
+    "rankings": "rankings/{code}/{kind}/{id_}",
+    "brawlers": "brawlers/{id_}",
 }
 
-# "club_rankings": "rankings/{code}/clubs",
-# "brawler_rankings": "rankings/{code}/brawlers/{id_}",
-# "player_rankings": "rankings/{code}/players",
-
-# "club_rankings": rankings_params,
-# "brawler_rankings": rankings_params,
-# "player_rankings": rankings_params,
-
 # before and after - this is so impractical that I suppose nobody will use this
+# that's why I decided not to include it here
 offic_params = {
     "members": {"limit": "100"},
     "rankings": {"limit": "200"},
@@ -96,5 +91,5 @@ offic_params = {
 }
 
 api_defs = {
-    "official": API("https://api.brawlstars.com/v1", official, offic_params),
+    "official": API("api.brawlstars.com/v1", official, offic_params),
 }

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from typing import Any
+
 __all__ = (
     "ClientException",
 
@@ -11,8 +13,6 @@ __all__ = (
 )
 
 
-# TODO: do __repr__ and possibly __str__ for classes
-
 class ClientException(Exception):
     """Base class for all client exceptions."""
 
@@ -20,16 +20,27 @@ class ClientException(Exception):
 class ClientResponseError(ClientException):
     """Connection error during reading response."""
 
-    def __init__(self, url: str, reason: str = "", message: str = ""):
+    def __init__(self, url: str, reason: str = "without a reason",
+                 message: str = "no message"):
         self.url = url
         self.reason = reason
         self.message = message
+        self.cause = "because " if reason != "without a reason" else ""
 
     def __repr__(self):
-        return "{0.__name__}({0.url}, {0.reason}, {0.message})".format(self)
+        return (
+            "{0.__class__.__name__}({0.url!r}, "
+            "{0.reason!r}, {0.message!r})").format(self)
 
     def __str__(self):
-        return "({0.url} -> {0.code}, {0.reason}, {0.message})".format(self)
+        return (
+            "{0.url} -> {0.code}, {0.cause}"
+            "{0.reason}, {0.message}").format(self)
+
+    def __eq__(self, other):
+        return (
+            (dir(self) == dir(other))
+            and (vars(self) == vars(other)))
 
 
 class UnexpectedResponseCode(ClientResponseError):
@@ -37,14 +48,14 @@ class UnexpectedResponseCode(ClientResponseError):
     in the official api documentation.
     """
 
-    def __init__(self, url: str, code: int, **kwargs):
+    def __init__(self, url: str, code: int, *args: Any, **kwargs: Any):
         self.code = code
-        super().__init__(url, **kwargs)
+        super().__init__(url, *args, **kwargs)
 
     def __repr__(self):
         return (
-            "{0.__name__}({0.url}, {0.code}, "
-            "{0.reason}, {0.message})").format(self)
+            "{0.__class__.__name__}({0.url!r}, {0.code!r}, "
+            "{0.reason!r}, {0.message!r})").format(self)
 
 
 class BadRequest(ClientResponseError):
