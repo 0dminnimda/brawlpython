@@ -13,7 +13,7 @@ __all__ = (
 
 
 class API:
-    def __init__(self, base: str, paths: Dict[str, str],
+    def __init__(self, base: str, paths: Dict[str, str] = {},
                  params: Dict[str, Dict[str, str]] = {},
                  token: Optional[str] = None) -> None:
         if not (base.startswith("http://") or base.startswith("https://")):
@@ -90,6 +90,16 @@ offic_params = {
     "brawlers": {"limit": ""},
 }
 
+starlist = {
+    "events": "events",
+    "brawlers": "brawlers",
+    "icons": "icons",
+    "maps": "maps/{id_}",
+    "gamemodes": "gamemodes",
+    "clublog": "clublog/{tag}",
+}
+
 api_defs = {
     "official": API("api.brawlstars.com/v1", official, offic_params),
+    "starlist": API("api.starlist.pro", starlist),
 }

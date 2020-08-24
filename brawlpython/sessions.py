@@ -7,7 +7,12 @@ from collections import defaultdict
 from functools import update_wrapper
 from requests import Session
 
-from .api_toolkit import default_headers, multiparams, isiter_noliterals, ismapping
+from .api_toolkit import (
+    default_headers,
+    isiter_noliterals,
+    ismapping,
+    multiparams,
+)
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
