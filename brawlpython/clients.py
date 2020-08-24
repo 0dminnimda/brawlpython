@@ -153,7 +153,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             "brawlers", api_name=api_name, id_=brawler, limit=limit)
 
     async def update_brawlers(self) -> None:
-        if self._brawlers_update is not None:
+        if self._brawlers_update is None:
             self._brawlers_update = time.time()
 
         if time.time() - self._brawlers_update >= self._min_update_time:
@@ -234,7 +234,7 @@ class SyncClient(SyncWith):
             "brawlers", api_name=api_name, id_=brawler, limit=limit)
 
     def update_brawlers(self) -> None:
-        if self._brawlers_update is not None:
+        if self._brawlers_update is None:
             self._brawlers_update = time.time()
 
         if time.time() - self._brawlers_update >= self._min_update_time:
