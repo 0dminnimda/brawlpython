@@ -3,7 +3,7 @@
 from . import __version__, __name__
 from .cache_utils import somecachedmethod, iscorofunc
 from asyncio import ensure_future as ensure, gather
-from collections.abc import Iterable, ByteString, Mapping
+from collections.abc import ByteString, Collection, Mapping, Sized
 from functools import update_wrapper
 import sys
 from typing import Dict, Union
@@ -11,19 +11,20 @@ from typing import Dict, Union
 __all__ = (
     "default_headers",
     "make_headers",
-    "isiter_noliterals",
+    "isliterals",
+    "iscollection",
+    "issized",
     "isunit",
     "isempty",
     "ismapping",
+    "isrequiredtype",
     "same",
     "unique",
-    "check_kwargs",
-    "check_args",
+    "prepare_param",
     "check_params",
     "_rearrange_params",
     "rearrange_params",
     "multiparams",
-    "multiparams_classcache"
 )
 
 
@@ -41,17 +42,24 @@ def make_headers(token: str) -> Dict[str, str]:
     return {"authorization": f"Bearer {token}"}
 
 
-def isiter_noliterals(obj):
-    return isinstance(obj, Iterable) and not isinstance(obj, (str, ByteString))
+def isliterals(obj):
+    return isinstance(obj, (str, ByteString))
+
+
+def iscollection(obj):
+    return isinstance(obj, Collection)
+
+
+def issized(obj):
+    return isinstance(obj, Sized)
 
 
 def isunit(obj):
-    return len(obj) == 1
-    # isinstance(obj, tuple) and .
+    return issized(obj) and len(obj) == 1
 
 
 def isempty(obj):
-    return len(obj) == 0
+    return issized(obj) and len(obj) == 0
 
 
 def ismapping(obj):
@@ -60,8 +68,11 @@ def ismapping(obj):
 
 def isrequiredtype(obj):
     return (
-        isiter_noliterals(obj) and not ismapping(obj)
-        and not isempty(obj))
+        iscollection(obj)
+        and not isliterals(obj)
+        and not ismapping(obj)
+        and not isempty(obj)
+    )
 
 
 def same(elements):
@@ -73,44 +84,24 @@ def unique(x):
     return not any(i in seen or seen.append(i) for i in x)
 
 
-def check_kwargs(kwargs):
-    lengths = []
-    for key, param in kwargs.items():
-        p_type = type(param)
-        if isrequiredtype(param):
-            if isunit(param):
-                kwargs[key] = ("u", param[0], p_type)
-            else:
-                lengths.append(len(param))
-                kwargs[key] = ("m", iter(param), p_type)
+def prepare_param(param, lengths):
+    if isrequiredtype(param):
+        if isunit(param):
+            return ("u", param[0])
         else:
-            kwargs[key] = ("u", param, p_type)
-
-    return kwargs, lengths
-
-
-def check_args(args):
-    args = list(args)
-    lengths = []
-    for i, param in enumerate(args):
-        p_type = type(param)
-        if isrequiredtype(param):
-            if isunit(param):
-                args[i] = ("u", param[0], p_type)
-            else:
-                lengths.append(len(param))
-                args[i] = ("m", iter(param), p_type)
-        else:
-            args[i] = ("u", param, p_type)
-
-    return args, lengths
+            lengths.append(len(param))
+            return ("m", iter(param))
+    else:
+        return ("u", param)
 
 
 def check_params(args, kwargs):
-    all_args, args_lengths = check_args(args[:])
-    all_kwargs, kwargs_lengths = check_kwargs(kwargs.copy())
+    lengths = []
 
-    lengths = args_lengths + kwargs_lengths
+    args = [prepare_param(param, lengths) for param in args]
+
+    kwargs = {
+        key: prepare_param(param, lengths) for key, param in kwargs.items()}
 
     if len(lengths) < 1:
         total_length = 1
@@ -121,28 +112,26 @@ def check_params(args, kwargs):
 
         total_length = lengths[0]
 
-    return all_args, all_kwargs, total_length
+    return args, kwargs, total_length
 
 
 def _rearrange_params(args, kwargs):
-    all_args, all_kwargs, length = check_params(args[:], kwargs.copy())
+    new_args, new_kwargs, length = check_params(args[:], kwargs.copy())
 
     for _ in range(length):
-        new_args = []
-        for (kind, val, p_type) in all_args:
+        current_args = []
+        for (kind, val) in new_args:
             if kind == "m":
                 val = next(val)
-                #val = p_type([val])
-            new_args.append(val)
+            current_args.append(val)
 
-        new_kwargs = {}
-        for key, (kind, val, p_type) in all_kwargs.items():
+        current_kwargs = {}
+        for key, (kind, val) in new_kwargs.items():
             if kind == "m":
                 val = next(val)
-                #val = p_type([val])
-            new_kwargs[key] = val
+            current_kwargs[key] = val
 
-        yield new_args, new_kwargs
+        yield current_args, current_kwargs
 
 
 def rearrange_params(*args, **kwargs):

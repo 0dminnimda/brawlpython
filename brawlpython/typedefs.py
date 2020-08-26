@@ -7,6 +7,7 @@ __all__ = (
     "L",
     "URLS",
     "PARAMS",
+    "RETURN",
 )
 
 R = TypeVar("R", bound="Union[Dict[str, Any], List[Dict[str, Any]]]")
@@ -17,3 +18,5 @@ URLS = TypeVar("URLS", bound="Union[List[str], str]")
 
 PARAMS = TypeVar(
     "PARAMS", bound="Sequence[Sequence[Sequence[Any], Mapping[Any, Any]]]")
+
+RETURN = TypeVar("RETURN", bound="Dict[str, Any]")

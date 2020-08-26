@@ -13,9 +13,15 @@ __all__ = (
 
 
 class API:
-    def __init__(self, base: str, paths: Dict[str, str] = {},
-                 params: Dict[str, Dict[str, str]] = {},
+    def __init__(self, base: str, paths: Optional[Dict[str, str]] = None,
+                 params: Optional[Dict[str, Dict[str, str]]] = None,
                  token: Optional[str] = None) -> None:
+
+        if paths is None:
+            paths = {}
+        if params is None:
+            params = {}
+
         if not (base.startswith("http://") or base.startswith("https://")):
             base = "https://" + base
         elif base.startswith("http://"):
@@ -101,5 +107,6 @@ starlist = {
 
 api_defs = {
     "official": API("api.brawlstars.com/v1", official, offic_params),
+    "chinese": API("api.brawlstars.cn/v1", official, offic_params),
     "starlist": API("api.starlist.pro", starlist),
 }

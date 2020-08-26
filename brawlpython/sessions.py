@@ -9,8 +9,7 @@ from requests import Session
 
 from .api_toolkit import (
     default_headers,
-    isiter_noliterals,
-    ismapping,
+    isrequiredtype,
     multiparams,
 )
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
@@ -213,7 +212,7 @@ def headers_handler(self, headers):
     if not self.can_use_cache:
         return headers
 
-    if isiter_noliterals(headers) and not ismapping(headers):
+    if isrequiredtype(headers):
         return [tuple(zip(headers.items())) for header in headers]
     else:
         return tuple(zip(headers.items()))
@@ -295,10 +294,10 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             headers=headers_handler(self, headers)))[0]
 
     async def gets(
-            self, urls: URLS, from_jsons: bool = True,
+            self, urls: URLS, from_json: bool = True,
             headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
         return await self._gets(
-            urls, from_json=from_jsons,
+            urls, from_json=from_json,
             headers=headers_handler(self, headers))
 
 
@@ -370,7 +369,7 @@ class SyncSession(SyncWith):
         return self._get(url, from_json=from_json,
                          headers=headers_handler(self, headers))[0]
 
-    def gets(self, urls: URLS, from_jsons: bool = True,
+    def gets(self, urls: URLS, from_json: bool = True,
              headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
-        return self._gets(urls, from_json=from_jsons,
+        return self._gets(urls, from_json=from_json,
                           headers=headers_handler(self, headers))

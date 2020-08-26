@@ -5,9 +5,10 @@ import asyncio
 from .api import api_defs, API
 from .api_toolkit import rearrange_params
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
+from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
-from .api_toolkit import isiter_noliterals
 
+from functools import update_wrapper
 from types import TracebackType
 from typing import (
     Any,
@@ -26,7 +27,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import URLS, L, R, PARAMS
+from .typedefs import URLS, L, R, PARAMS, RETURN
 import time
 
 __all__ = (
@@ -38,6 +39,8 @@ __all__ = (
 
 
 OFFIC = "official"
+CHI = "chinese"
+OFFICS = (OFFIC, CHI)
 
 KINDS = {
     "b": "brawlers",
@@ -67,8 +70,8 @@ def _offic_data_gets(data_list: L) -> L:
     return results
 
 
-def _data_gets(self, api_name: str, data_list: L) -> L:
-    if api_name == OFFIC:
+def _data_gets(self, data_list: L) -> L:
+    if self._current_api in OFFICS:
         res = _offic_data_gets(data_list)
     else:
         res = data_list
@@ -77,6 +80,21 @@ def _data_gets(self, api_name: str, data_list: L) -> L:
         return res[0]
 
     return res
+
+
+def add_api_name(default_api):
+    def decorator(func):
+        if iscorofunc(func):
+            async def wrapper(self, *args, api: str = default_api, **kwargs):
+                self._current_api = api
+                return await func(self, *args, **kwargs)
+        else:
+            def wrapper(self, *args, api: str = default_api, **kwargs):
+                self._current_api = api
+                return func(self, *args, **kwargs)
+
+        return update_wrapper(wrapper, func)
+    return decorator
 
 
 class AsyncClient(AsyncInitObject, AsyncWith):
@@ -99,7 +117,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             timeout=timeout, repeat_failed=repeat_failed
         )
         self.api_s = {**api_defs, **api_s}
-        self._default_api = default_api
+        self._current_api = self._default_api = default_api
 
         if isinstance(tokens, str):
             self.api_s[default_api].set_token(tokens)
@@ -127,30 +145,36 @@ class AsyncClient(AsyncInitObject, AsyncWith):
     async def _get(self, url: str) -> R:
         return _data_get(await self.session.get(url))
 
-    async def _gets(self, api_name: str, *args: Any, **kwargs: Any) -> L:
+    async def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = await self.session.gets(*args, **kwargs)
-        return _data_gets(self, api_name, resps)
+        return _data_gets(self, resps)
 
-    async def _fetch(self, path: str,
-                     api_name: Optional[str] = None,
-                     **kwargs: Any) -> Dict[str, Any]:
-        if api_name is None:
-            api_name = self._default_api
+    async def _fetch(self, path: str, from_json: bool = True,
+                     **kwargs: Any) -> RETURN:
 
-        api = self.api_s[api_name]
-        headers = api.headers
-        urls = (api.get(path, **kwargs),)
+        if self._current_api is None:
+            self._current_api = self._default_api
 
-        return await self._gets(api_name, urls, headers=headers)
+        api = self.api_s[self._current_api]
 
+        return await self._gets(
+            api.get(path, **kwargs), headers=api.headers, from_json=from_json)
+
+    @add_api_name(None)
+    async def test_fetch(self, *args, **kwargs):
+        return await self._fetch(*args, **kwargs)
+
+    @add_api_name(OFFIC)
     async def brawlers(self, brawler: Union[int, str] = "",
-                       limit: Optional[int] = None,
-                       api_name: Optional[str] = None) -> Dict[str, Any]:
+                       limit: Optional[int] = None) -> RETURN:
 
         if limit is None:
             limit = ""
-        return await self._fetch(
-            "brawlers", api_name=api_name, id_=brawler, limit=limit)
+        return await self._fetch("brawlers", id_=brawler, limit=limit)
+
+    @add_api_name(OFFIC)
+    async def player(self, tag: str) -> RETURN:
+        return await self._fetch("players", tag=tag)
 
     async def update_brawlers(self) -> None:
         if self._brawlers_update is None:
@@ -180,7 +204,7 @@ class SyncClient(SyncWith):
             timeout=timeout, repeat_failed=repeat_failed
         )
         self.api_s = {**api_defs, **api_s}
-        self._default_api = default_api
+        self._current_api = self._default_api = default_api
 
         if isinstance(tokens, str):
             self.api_s[default_api].set_token(tokens)
@@ -208,30 +232,36 @@ class SyncClient(SyncWith):
     def _get(self, url: str) -> R:
         return _data_get(self.session.get(url))
 
-    def _gets(self, api_name: str, *args: Any, **kwargs: Any) -> L:
+    def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = self.session.gets(*args, **kwargs)
-        return _data_gets(self, api_name, resps)
+        return _data_gets(self, resps)
 
-    def _fetch(self, path: str,
-               api_name: Optional[str] = None,
-               **kwargs: Any) -> Dict[str, Any]:
-        if api_name is None:
-            api_name = self._default_api
+    def _fetch(self, path: str, from_json: bool = True,
+               **kwargs: Any) -> RETURN:
 
-        api = self.api_s[api_name]
-        headers = api.headers
-        urls = (api.get(path, **kwargs),)
+        if self._current_api is None:
+            self._current_api = self._default_api
 
-        return self._gets(api_name, urls, headers=headers)
+        api = self.api_s[self._current_api]
 
+        return self._gets(
+            api.get(path, **kwargs), headers=api.headers, from_json=from_json)
+
+    @add_api_name(None)
+    def test_fetch(self, *args, **kwargs):
+        return self._fetch(*args, **kwargs)
+
+    @add_api_name(OFFIC)
     def brawlers(self, brawler: Union[int, str] = "",
-                 limit: Optional[int] = None,
-                 api_name: Optional[str] = None) -> Dict[str, Any]:
+                 limit: Optional[int] = None) -> RETURN:
 
         if limit is None:
             limit = ""
-        return self._fetch(
-            "brawlers", api_name=api_name, id_=brawler, limit=limit)
+        return self._fetch("brawlers", id_=brawler, limit=limit)
+
+    @add_api_name(OFFIC)
+    def player(self, tag: str) -> RETURN:
+        return self._fetch("players", tag=tag)
 
     def update_brawlers(self) -> None:
         if self._brawlers_update is None:

@@ -11,7 +11,6 @@ __all__ = (
     "iscorofunc",
     "get_decorator",
     "somecachedmethod",
-    "classcache"
 )
 
 
