@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from .api_toolkit import make_headers
-from .optional_format import optional_format
 
+from pyformatting import optional_format
 from typing import Any, Dict, Optional, Union
 import urllib.parse as parse
 
@@ -84,8 +84,8 @@ official = {
     "battlelog": "players/{tag}/battlelog",
     "clubs": "clubs/{tag}",
     "members": "clubs/{tag}/members",
-    "rankings": "rankings/{code}/{kind}/{id_}",
-    "brawlers": "brawlers/{id_}",
+    "rankings": "rankings/{code}/{kind}/{id}",
+    "brawlers": "brawlers/{id}",
 }
 
 # before and after - this is so impractical that I suppose nobody will use this

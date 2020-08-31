@@ -170,7 +170,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         if limit is None:
             limit = ""
-        return await self._fetch("brawlers", id_=brawler, limit=limit)
+        return await self._fetch("brawlers", id=brawler, limit=limit)
 
     @add_api_name(OFFIC)
     async def player(self, tag: str) -> RETURN:
@@ -182,6 +182,29 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         if time.time() - self._brawlers_update >= self._min_update_time:
             self._brawlers = await self.brawlers()
+
+    def find_brawler(self, match, parameter=None) -> Optional[RETURN]:
+        # FIXME: raw code
+
+        brawlers = self._brawlers
+
+        if parameter == "name":
+            if isinstance(match, str):
+                match = match.upper()
+        elif parameter in ("number", "rank"):
+            if -len(brawlers) <= match < len(brawlers):
+                return brawlers[match]
+
+        if parameter is None:
+            for brawler in brawlers:
+                if match in brawler.values():
+                    return brawler
+        else:
+            for brawler in brawlers:
+                if brawler.get(parameter) == match:
+                    return brawler
+
+        return None  # returns explicitly
 
 
 class SyncClient(SyncWith):
@@ -257,7 +280,7 @@ class SyncClient(SyncWith):
 
         if limit is None:
             limit = ""
-        return self._fetch("brawlers", id_=brawler, limit=limit)
+        return self._fetch("brawlers", id=brawler, limit=limit)
 
     @add_api_name(OFFIC)
     def player(self, tag: str) -> RETURN:

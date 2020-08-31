@@ -10,7 +10,7 @@ with open("README.md", "r") as file:
 with open("requirements/common.txt", "r") as file:
     requirements = [line.strip() for line in file]
 
-github_link = "https://github.com/0dminnimda/brawlpython"
+github_link = "https://github.com/0dminnimda/{0}".format(__name__)
 
 setup(
     name=__name__,
@@ -38,11 +38,11 @@ setup(
         "Typing :: Typed",
     ],
     license="MIT",
-    keywords=(
+    keywords=[
         "brawl stars, brawl stars api, brawlstars,"
         "supercell, brawl, stars, api,"
         "brawlpython, python, async, aiohttp, sync, requests,"
-    ),
+    ],
     project_urls={
         # "Documentation": "Coming soon",
         # "Funding": "Haven\'t done yet :(",
