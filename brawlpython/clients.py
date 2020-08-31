@@ -204,8 +204,6 @@ class AsyncClient(AsyncInitObject, AsyncWith):
                 if brawler.get(parameter) == match:
                     return brawler
 
-        #
-
         return None  # returns explicitly
 
 
