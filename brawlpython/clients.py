@@ -46,6 +46,7 @@ KINDS = {
     "b": "brawlers",
     "c": "clubs",
     "p": "players",
+    "ps": "powerplay/seasons",
 }
 
 KIND_VALS = list(KINDS.values())

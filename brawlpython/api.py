@@ -100,9 +100,10 @@ starlist = {
     "events": "events",
     "brawlers": "brawlers",
     "icons": "icons",
-    "maps": "maps/{id_}",
+    "maps": "maps/{id}",
     "gamemodes": "gamemodes",
     "clublog": "clublog/{tag}",
+    "translations": "translations/{code}",
 }
 
 api_defs = {
