@@ -25,7 +25,7 @@ Documentation coming soon
 [cov img]: https://coveralls.io/repos/github/0dminnimda/brawlpython/badge.svg?branch=master
 
 [pypi link]: https://pypi.org/project/brawlpython
-[thanks link]: https://saythanks.io/to/0dminnimda@gmail.com
+[thanks link]: https://saythanks.io/to/0dminnimda.contact%40gmail.com
 [license link]: https://github.com/0dminnimda/brawlpython/blob/master/LICENSE
 [wheel link]: https://pypi.org/project/brawlpython/#files
 [github link]: https://github.com/0dminnimda/brawlpython

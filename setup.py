@@ -19,7 +19,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="0dminnimda",
-    author_email="0dminnimda@gmail.com",
+    author_email="0dminnimda.contact@gmail.com",
     url=github_link,
     packages=find_packages(),
     classifiers=[
