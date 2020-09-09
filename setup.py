@@ -46,7 +46,8 @@ setup(
     project_urls={
         # "Documentation": "Coming soon",
         # "Funding": "Haven\'t done yet :(",
-        "Say Thanks!": "https://saythanks.io/to/0dminnimda%40gmail.com",
+        "Say Thanks!": "https://saythanks.io/to/"\
+        "0dminnimda.contact%40gmail.com",
         # "Source": github_link,
         # as long as the `url` parameter does not differ from
         # `project_urls["Source"]`, the latter is meaningless

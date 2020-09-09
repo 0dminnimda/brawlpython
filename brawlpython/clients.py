@@ -2,7 +2,10 @@
 
 import asyncio
 
-from .api import api_defs, API
+from .api import (
+    api_defs, API, KINDS, KIND_VALS, KIND_KEYS,
+    OFFIC, CHI, STAR, OFFICS, UNOFFICS,
+)
 from .api_toolkit import rearrange_params
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
@@ -33,24 +36,7 @@ import time
 __all__ = (
     "AsyncClient",
     "SyncClient",
-    "OFFIC",
-    "KINDS",
 )
-
-
-OFFIC = "official"
-CHI = "chinese"
-OFFICS = (OFFIC, CHI)
-
-KINDS = {
-    "b": "brawlers",
-    "c": "clubs",
-    "p": "players",
-    "ps": "powerplay/seasons",
-}
-
-KIND_VALS = list(KINDS.values())
-KIND_KEYS = list(KINDS.keys())
 
 
 def _data_get(data: R) -> R:
@@ -71,9 +57,23 @@ def _offic_data_gets(data_list: L) -> L:
     return results
 
 
+def _star_data_gets(data_list: L) -> L:
+    results = []
+    for data in data_list:
+        data.pop("status", None)
+        if len(data) == 1:
+            results += list(data.values())
+        else:
+            results.append(data)
+    return results
+
+
 def _data_gets(self, data_list: L) -> L:
-    if self._current_api in OFFICS:
+    name = self._current_api
+    if name in OFFICS:
         res = _offic_data_gets(data_list)
+    elif name == STAR:
+        res = _star_data_gets(data_list)
     else:
         res = data_list
 
@@ -143,8 +143,8 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         """
         return self.session.closed
 
-    async def _get(self, url: str) -> R:
-        return _data_get(await self.session.get(url))
+    # async def _get(self, url: str) -> R:
+    #     return _data_get(await self.session.get(url))
 
     async def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = await self.session.gets(*args, **kwargs)
@@ -253,8 +253,8 @@ class SyncClient(SyncWith):
         """
         return self.session.closed
 
-    def _get(self, url: str) -> R:
-        return _data_get(self.session.get(url))
+    # def _get(self, url: str) -> R:
+    #     return _data_get(self.session.get(url))
 
     def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = self.session.gets(*args, **kwargs)

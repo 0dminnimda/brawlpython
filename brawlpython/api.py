@@ -8,7 +8,15 @@ import urllib.parse as parse
 
 __all__ = (
     "API",
-    "api_defs"
+    "api_defs",
+    "KINDS",
+    "KIND_VALS",
+    "KIND_KEYS",
+    "OFFIC",
+    "CHI",
+    "STAR",
+    "OFFICS",
+    "UNOFFICS",
 )
 
 
@@ -106,8 +114,25 @@ starlist = {
     "translations": "translations/{code}",
 }
 
+KINDS = {
+    "b": "brawlers",
+    "c": "clubs",
+    "p": "players",
+    "ps": "powerplay/seasons",
+}
+
+KIND_VALS = list(KINDS.values())
+KIND_KEYS = list(KINDS.keys())
+
+
+OFFIC = "official"
+CHI = "chinese"
+STAR = "starlist"
+OFFICS = (OFFIC, CHI)
+UNOFFICS = (STAR,)
+
 api_defs = {
-    "official": API("api.brawlstars.com/v1", official, offic_params),
-    "chinese": API("api.brawlstars.cn/v1", official, offic_params),
-    "starlist": API("api.starlist.pro", starlist),
+    OFFIC: API("api.brawlstars.com/v1", official, offic_params),
+    CHI: API("api.brawlstars.cn/v1", official, offic_params),
+    STAR: API("api.starlist.pro", starlist),
 }
