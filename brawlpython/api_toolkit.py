@@ -35,6 +35,7 @@ def default_headers() -> Dict[str, str]:
         "accept-encoding": ", ".join(("gzip", "deflate")),
         "cache-control": "no-cache",
         "pragma": "no-cache",
+        # "content-encoding": "utf-8",
     }
 
 

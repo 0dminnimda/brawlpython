@@ -35,6 +35,7 @@ from typing import (
 )
 
 import orjson
+# from unicodedata import normalize  # "NFKC" or "NFKD"
 
 __all__ = (
     "AsyncSession",

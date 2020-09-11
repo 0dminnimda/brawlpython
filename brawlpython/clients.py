@@ -15,6 +15,7 @@ from functools import update_wrapper
 from types import TracebackType
 from typing import (
     Any,
+    Callable,
     Coroutine,
     Dict,
     Generator,
@@ -68,7 +69,7 @@ def _star_data_gets(data_list: L) -> L:
     return results
 
 
-def _data_gets(self, data_list: L) -> L:
+def gets_handler(self, data_list: L) -> L:
     name = self._current_api
     if name in OFFICS:
         res = _offic_data_gets(data_list)
@@ -99,18 +100,20 @@ def add_api_name(default_api):
 
 
 class AsyncClient(AsyncInitObject, AsyncWith):
-    async def __init__(self, tokens: Union[str, Dict[str, str]],
-                       api_s: Dict[str, API] = {},
-                       default_api: str = OFFIC,
-                       return_unit_list: bool = True,
-                       min_update_time: Union[int, float] = 60 * 10,
+    async def __init__(
+            self, tokens: Union[str, Dict[str, str]],
+            api_s: Dict[str, API] = {},
+            default_api: str = OFFIC,
+            return_unit_list: bool = True,
+            min_update_time: Union[int, float] = 60 * 10,
 
-                       trust_env: bool = True,
-                       cache_ttl: Union[int, float] = 60,
-                       cache_limit: int = 1024,
-                       use_cache: bool = True,
-                       timeout: Union[int, float] = 30,
-                       repeat_failed: int = 3) -> None:
+            trust_env: bool = True,
+            cache_ttl: Union[int, float] = 60,
+            cache_limit: int = 1024,
+            use_cache: bool = True,
+            timeout: Union[int, float] = 30,
+            repeat_failed: int = 3,
+            data_handler: Callable["AsyncClient", L] = gets_handler) -> None:
 
         self.session = await AsyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
@@ -132,6 +135,8 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         await self.update_brawlers()
 
+        self._gets_handler = data_handler
+
     async def close(self) -> None:
         """Close session"""
         await self.session.close()
@@ -148,7 +153,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
     async def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = await self.session.gets(*args, **kwargs)
-        return _data_gets(self, resps)
+        return self._gets_handler(self, resps)
 
     async def _fetch(self, path: str, from_json: bool = True,
                      **kwargs: Any) -> RETURN:
@@ -209,18 +214,20 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
 
 class SyncClient(SyncWith):
-    def __init__(self, tokens: Union[str, Dict[str, str]],
-                 api_s: Dict[str, API] = {},
-                 default_api: str = OFFIC,
-                 return_unit_list: bool = True,
-                 min_update_time: Union[int, float] = 60 * 10,
+    def __init__(
+            self, tokens: Union[str, Dict[str, str]],
+            api_s: Dict[str, API] = {},
+            default_api: str = OFFIC,
+            return_unit_list: bool = True,
+            min_update_time: Union[int, float] = 60 * 10,
 
-                 trust_env: bool = True,
-                 cache_ttl: Union[int, float] = 60,
-                 cache_limit: int = 1024,
-                 use_cache: bool = True,
-                 timeout: Union[int, float] = 30,
-                 repeat_failed: int = 3) -> None:
+            trust_env: bool = True,
+            cache_ttl: Union[int, float] = 60,
+            cache_limit: int = 1024,
+            use_cache: bool = True,
+            timeout: Union[int, float] = 30,
+            repeat_failed: int = 3,
+            data_handler: Callable["AsyncClient", L] = gets_handler) -> None:
 
         self.session = SyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
@@ -242,6 +249,8 @@ class SyncClient(SyncWith):
 
         self.update_brawlers()
 
+        self._gets_handler = data_handler
+
     def close(self) -> None:
         """Close session"""
         self.session.close()
@@ -258,7 +267,7 @@ class SyncClient(SyncWith):
 
     def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = self.session.gets(*args, **kwargs)
-        return _data_gets(self, resps)
+        return self._gets_handler(self, resps)
 
     def _fetch(self, path: str, from_json: bool = True,
                **kwargs: Any) -> RETURN:
