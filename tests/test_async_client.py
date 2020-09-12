@@ -68,6 +68,13 @@ async def no_test_no_cache(factory):
     assert unique(await client._gets([url_uuid] * 2))
 
 
+# FIXME: complete test
+async def test_data_handler(factory):
+    client = await factory(token, data_handler=lambda *x: None)
+
+    await client._get(url_uuid)
+
+
 if __name__ == "__main__":
     import run_tests
 

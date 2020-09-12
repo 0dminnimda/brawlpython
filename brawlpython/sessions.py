@@ -15,7 +15,7 @@ from .api_toolkit import (
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
-from .typedefs import URLS, JSONSEQ, JSONT
+from .typedefs import URLS, JSONSEQ, JSONT, NUMBER
 
 from typing import (
     Any,
@@ -42,7 +42,7 @@ __all__ = (
     "SyncSession")
 
 
-# XXX: in both functions I need to find a suitable cache_limit
+# FIXME: in both functions I need to find a suitable cache_limit
 # 1024 is a relatively random choice and
 # has nothing to do with the desired behavior
 
@@ -220,10 +220,10 @@ def headers_handler(self, headers):
 
 class AsyncSession(AsyncInitObject, AsyncWith):
     async def __init__(self, trust_env: bool = True,
-                       cache_ttl: Union[int, float] = 60,
+                       cache_ttl: NUMBER = 60,
                        cache_limit: int = 1024,
                        use_cache: bool = True,
-                       timeout: Union[int, float] = 30,
+                       timeout: NUMBER = 30,
                        repeat_failed: int = 3) -> None:
         headers = default_headers()
         loop = asyncio.get_event_loop()
@@ -303,9 +303,9 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
 class SyncSession(SyncWith):
     def __init__(self, trust_env: bool = True,
-                 cache_ttl: Union[int, float] = 60,
+                 cache_ttl: NUMBER = 60,
                  cache_limit: int = 1024, use_cache: bool = True,
-                 timeout: Union[int, float] = 30,
+                 timeout: NUMBER = 30,
                  repeat_failed: int = 3) -> None:
         self._closed = False
 

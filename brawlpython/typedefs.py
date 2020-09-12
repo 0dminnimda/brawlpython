@@ -26,7 +26,8 @@ __all__ = (
     "JSONSEQ",
     "URLS",
     "RETURN",
-    "HANDLER")
+    "HANDLER",
+    "NUMBER")
 
 # SEE: https://github.com/python/typing/issues/182
 JSONV = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
@@ -39,3 +40,5 @@ URLS = Union[List[str], str]
 RETURN = Dict[str, Any]
 
 HANDLER = Callable[["AsyncClient", JSONSEQ], JSONSEQ]
+
+NUMBER = Union[int, float]

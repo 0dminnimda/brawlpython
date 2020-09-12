@@ -31,7 +31,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import URLS, JSONSEQ, JSONT, RETURN, HANDLER
+from .typedefs import URLS, JSONSEQ, RETURN, HANDLER, NUMBER
 import time
 
 __all__ = (
@@ -85,13 +85,13 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             api_s: Dict[str, API] = {},
             default_api: str = OFFIC,
             return_unit_list: bool = True,
-            min_update_time: Union[int, float] = 60 * 10,
+            min_update_time: NUMBER = 60 * 10,
 
             trust_env: bool = True,
-            cache_ttl: Union[int, float] = 60,
+            cache_ttl: NUMBER = 60,
             cache_limit: int = 1024,
             use_cache: bool = True,
-            timeout: Union[int, float] = 30,
+            timeout: NUMBER = 30,
             repeat_failed: int = 3,
             data_handler: HANDLER = gets_handler) -> None:
 
@@ -196,13 +196,13 @@ class SyncClient(SyncWith):
             api_s: Dict[str, API] = {},
             default_api: str = OFFIC,
             return_unit_list: bool = True,
-            min_update_time: Union[int, float] = 60 * 10,
+            min_update_time: NUMBER = 60 * 10,
 
             trust_env: bool = True,
-            cache_ttl: Union[int, float] = 60,
+            cache_ttl: NUMBER = 60,
             cache_limit: int = 1024,
             use_cache: bool = True,
-            timeout: Union[int, float] = 30,
+            timeout: NUMBER = 30,
             repeat_failed: int = 3,
             data_handler: HANDLER = gets_handler) -> None:
 
