@@ -10,8 +10,7 @@ __all__ = (
     "cachedmethod",
     "iscorofunc",
     "get_decorator",
-    "somecachedmethod",
-)
+    "somecachedmethod")
 
 
 class NaN:

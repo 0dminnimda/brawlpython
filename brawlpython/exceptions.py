@@ -9,8 +9,7 @@ __all__ = (
     "UnexpectedResponseCode",
     "BadRequest", "Forbidden", "NotFound",
     "TooManyRequests", "InternalServerError",
-    "ServiceUnavailable", "WITH_CODE",
-)
+    "ServiceUnavailable", "WITH_CODE")
 
 
 class ClientException(Exception):

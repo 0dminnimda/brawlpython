@@ -39,8 +39,7 @@ import orjson
 
 __all__ = (
     "AsyncSession",
-    "SyncSession",
-)
+    "SyncSession")
 
 
 # XXX: in both functions I need to find a suitable cache_limit

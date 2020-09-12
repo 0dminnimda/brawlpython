@@ -16,8 +16,7 @@ __all__ = (
     "CHI",
     "STAR",
     "OFFICS",
-    "UNOFFICS",
-)
+    "UNOFFICS")
 
 
 class API:

@@ -10,5 +10,4 @@ from .clients import AsyncClient, SyncClient
 __all__ = (
     "AsyncClient",
     "SyncClient",
-    "API"
-)
+    "API")

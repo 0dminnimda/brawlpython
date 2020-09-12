@@ -6,7 +6,7 @@ from .api import (
     api_defs, API, KINDS, KIND_VALS, KIND_KEYS,
     OFFIC, CHI, STAR, OFFICS, UNOFFICS,
 )
-from .api_toolkit import rearrange_params
+from .api_toolkit import rearrange_params, add_api_name
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
@@ -31,23 +31,18 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import URLS, L, R, PARAMS, RETURN
+from .typedefs import URLS, L, R, PARAMS, RETURN, HANDLER
 import time
 
 __all__ = (
     "AsyncClient",
     "SyncClient",
-)
+    "offic_gets_handler",
+    "star_gets_handler",
+    "gets_handler")
 
 
-def _data_get(data: R) -> R:
-    get_items = data.get("items")
-    if get_items is not None and isinstance(get_items, list):
-        return get_items
-    return data
-
-
-def _offic_data_gets(data_list: L) -> L:
+def offic_gets_handler(data_list: L) -> L:
     results = []
     for data in data_list:
         get_items = data.get("items")
@@ -58,7 +53,7 @@ def _offic_data_gets(data_list: L) -> L:
     return results
 
 
-def _star_data_gets(data_list: L) -> L:
+def star_gets_handler(data_list: L) -> L:
     results = []
     for data in data_list:
         data.pop("status", None)
@@ -72,9 +67,9 @@ def _star_data_gets(data_list: L) -> L:
 def gets_handler(self, data_list: L) -> L:
     name = self._current_api
     if name in OFFICS:
-        res = _offic_data_gets(data_list)
+        res = offic_gets_handler(data_list)
     elif name == STAR:
-        res = _star_data_gets(data_list)
+        res = star_gets_handler(data_list)
     else:
         res = data_list
 
@@ -82,21 +77,6 @@ def gets_handler(self, data_list: L) -> L:
         return res[0]
 
     return res
-
-
-def add_api_name(default_api):
-    def decorator(func):
-        if iscorofunc(func):
-            async def wrapper(self, *args, api: str = default_api, **kwargs):
-                self._current_api = api
-                return await func(self, *args, **kwargs)
-        else:
-            def wrapper(self, *args, api: str = default_api, **kwargs):
-                self._current_api = api
-                return func(self, *args, **kwargs)
-
-        return update_wrapper(wrapper, func)
-    return decorator
 
 
 class AsyncClient(AsyncInitObject, AsyncWith):
@@ -113,7 +93,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             use_cache: bool = True,
             timeout: Union[int, float] = 30,
             repeat_failed: int = 3,
-            data_handler: Callable["AsyncClient", L] = gets_handler) -> None:
+            data_handler: HANDLER = gets_handler) -> None:
 
         self.session = await AsyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
@@ -147,9 +127,6 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         A readonly property.
         """
         return self.session.closed
-
-    # async def _get(self, url: str) -> R:
-    #     return _data_get(await self.session.get(url))
 
     async def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = await self.session.gets(*args, **kwargs)
@@ -227,7 +204,7 @@ class SyncClient(SyncWith):
             use_cache: bool = True,
             timeout: Union[int, float] = 30,
             repeat_failed: int = 3,
-            data_handler: Callable["AsyncClient", L] = gets_handler) -> None:
+            data_handler: HANDLER = gets_handler) -> None:
 
         self.session = SyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
@@ -261,9 +238,6 @@ class SyncClient(SyncWith):
         A readonly property.
         """
         return self.session.closed
-
-    # def _get(self, url: str) -> R:
-    #     return _data_get(self.session.get(url))
 
     def _gets(self, *args: Any, **kwargs: Any) -> L:
         resps = self.session.gets(*args, **kwargs)

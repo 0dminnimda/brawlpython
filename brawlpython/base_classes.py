@@ -6,8 +6,7 @@ from typing import Any, Optional, Type, TypeVar
 __all__ = (
     "AsyncInitObject",
     "AsyncWith",
-    "SyncWith",
-)
+    "SyncWith")
 
 
 class AsyncInitObject(object):

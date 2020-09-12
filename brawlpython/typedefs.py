@@ -8,7 +8,7 @@ __all__ = (
     "URLS",
     "PARAMS",
     "RETURN",
-)
+    "HANDLER")
 
 R = TypeVar("R", bound="Union[Dict[str, Any], List[Dict[str, Any]]]")
 
@@ -20,3 +20,5 @@ PARAMS = TypeVar(
     "PARAMS", bound="Sequence[Sequence[Sequence[Any], Mapping[Any, Any]]]")
 
 RETURN = TypeVar("RETURN", bound="Dict[str, Any]")
+
+HANDLER = TypeVar("HANDLER", bound="Callable[[AsyncClient, L], L]")

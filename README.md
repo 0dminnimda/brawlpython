@@ -16,6 +16,9 @@ Documentation coming soon
 
 [Read code examples][examples link]
 
+## Development Status
+
+Pre-Alpha
 
 [pypi img]: https://img.shields.io/pypi/v/brawlpython.svg?style=plastic
 [thanks img]: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg?style=plastic
