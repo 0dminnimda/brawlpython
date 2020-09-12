@@ -31,7 +31,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import URLS, L, R, PARAMS, RETURN, HANDLER
+from .typedefs import URLS, JSONSEQ, JSONT, RETURN, HANDLER
 import time
 
 __all__ = (
@@ -42,7 +42,7 @@ __all__ = (
     "gets_handler")
 
 
-def offic_gets_handler(data_list: L) -> L:
+def offic_gets_handler(data_list: JSONSEQ) -> JSONSEQ:
     results = []
     for data in data_list:
         get_items = data.get("items")
@@ -53,7 +53,7 @@ def offic_gets_handler(data_list: L) -> L:
     return results
 
 
-def star_gets_handler(data_list: L) -> L:
+def star_gets_handler(data_list: JSONSEQ) -> JSONSEQ:
     results = []
     for data in data_list:
         data.pop("status", None)
@@ -64,7 +64,7 @@ def star_gets_handler(data_list: L) -> L:
     return results
 
 
-def gets_handler(self, data_list: L) -> L:
+def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
     name = self._current_api
     if name in OFFICS:
         res = offic_gets_handler(data_list)
@@ -128,7 +128,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         """
         return self.session.closed
 
-    async def _gets(self, *args: Any, **kwargs: Any) -> L:
+    async def _gets(self, *args: Any, **kwargs: Any) -> JSONSEQ:
         resps = await self.session.gets(*args, **kwargs)
         return self._gets_handler(self, resps)
 
@@ -239,7 +239,7 @@ class SyncClient(SyncWith):
         """
         return self.session.closed
 
-    def _gets(self, *args: Any, **kwargs: Any) -> L:
+    def _gets(self, *args: Any, **kwargs: Any) -> JSONSEQ:
         resps = self.session.gets(*args, **kwargs)
         return self._gets_handler(self, resps)
 

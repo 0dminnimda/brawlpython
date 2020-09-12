@@ -1,24 +1,41 @@
 # -*- coding: utf-8 -*-
 
-from typing import TypeVar
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Generator,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
+
 
 __all__ = (
-    "R",
-    "L",
+    "JSONV",
+    "JSONT",
+    "JSONSEQ",
     "URLS",
-    "PARAMS",
     "RETURN",
     "HANDLER")
 
-R = TypeVar("R", bound="Union[Dict[str, Any], List[Dict[str, Any]]]")
+# SEE: https://github.com/python/typing/issues/182
+JSONV = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
+JSONT = Union[Dict[str, JSONV], List[JSONV]]
 
-L = TypeVar("L", bound="List[Union[Dict[str, Any], List[Dict[str, Any]]]]")
+JSONSEQ = Sequence[JSONT]
 
-URLS = TypeVar("URLS", bound="Union[List[str], str]")
+URLS = Union[List[str], str]
 
-PARAMS = TypeVar(
-    "PARAMS", bound="Sequence[Sequence[Sequence[Any], Mapping[Any, Any]]]")
+RETURN = Dict[str, Any]
 
-RETURN = TypeVar("RETURN", bound="Dict[str, Any]")
-
-HANDLER = TypeVar("HANDLER", bound="Callable[[AsyncClient, L], L]")
+HANDLER = Callable[["AsyncClient", JSONSEQ], JSONSEQ]

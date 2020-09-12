@@ -15,7 +15,7 @@ from .api_toolkit import (
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
-from .typedefs import URLS, L, R
+from .typedefs import URLS, JSONSEQ, JSONT
 
 from typing import (
     Any,
@@ -288,14 +288,14 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
     async def get(self, url: str, from_json: bool = True,
-                  headers: Dict[str, str] = {}) -> R:
+                  headers: Dict[str, str] = {}) -> JSONT:
         return (await self._get(
             url, from_json=from_json,
             headers=headers_handler(self, headers)))[0]
 
     async def gets(
             self, urls: URLS, from_json: bool = True,
-            headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
+            headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> JSONSEQ:
         return await self._gets(
             urls, from_json=from_json,
             headers=headers_handler(self, headers))
@@ -365,11 +365,11 @@ class SyncSession(SyncWith):
     _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
     def get(self, url: str, from_json: bool = True,
-            headers: Dict[str, str] = {}) -> R:
+            headers: Dict[str, str] = {}) -> JSONT:
         return self._get(url, from_json=from_json,
                          headers=headers_handler(self, headers))[0]
 
     def gets(self, urls: URLS, from_json: bool = True,
-             headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> L:
+             headers: Union[List[Dict[str, str]], Dict[str, str]] = {}) -> JSONSEQ:
         return self._gets(urls, from_json=from_json,
                           headers=headers_handler(self, headers))
