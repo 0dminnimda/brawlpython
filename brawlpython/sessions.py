@@ -34,7 +34,11 @@ from typing import (
     Union,
 )
 
-import orjson
+try:
+    import orjson as json
+except ImportError:
+    import json
+
 # from unicodedata import normalize  # "NFKC" or "NFKD"
 
 __all__ = (
@@ -280,7 +284,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             code = response.status
             data = await response.text()
             if from_json:
-                data = orjson.loads(data)
+                data = json.loads(data)
 
         return code, data
 
@@ -357,7 +361,7 @@ class SyncSession(SyncWith):
             code = response.status_code
             data = response.text
             if from_json:
-                data = orjson.loads(data)
+                data = json.loads(data)
 
         return code, data
 

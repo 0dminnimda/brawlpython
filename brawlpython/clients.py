@@ -79,6 +79,38 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
     return res
 
 
+def find_brawler(self, match, parameter=None) -> Optional[RETURN]:
+
+    brawlers = self._brawlers
+
+    if parameter == "name":
+        if isinstance(match, str):
+            match = match.upper()
+        else:
+            # returns explicitly
+            return None
+    elif parameter == "id":
+        try:
+            match = int(match)
+        except TypeError:
+            # returns explicitly
+            return None
+    elif parameter == "rank":
+        if -len(brawlers) <= match < len(brawlers):
+            return brawlers[match]
+
+    if parameter is None:
+        for brawler in brawlers:
+            if match in brawler.values():
+                return brawler
+    else:
+        for brawler in brawlers:
+            if brawler.get(parameter) == match:
+                return brawler
+
+    return None  # returns explicitly
+
+
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
             self, tokens: Union[str, Dict[str, str]],
@@ -113,9 +145,10 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         self._brawlers_update = None
         self._min_update_time = min_update_time
 
-        await self.update_brawlers()
-
         self._gets_handler = data_handler
+
+        self._brawlers = await self.brawlers()
+        await self.update_brawlers()
 
     async def close(self) -> None:
         """Close session"""
@@ -166,29 +199,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         if time.time() - self._brawlers_update >= self._min_update_time:
             self._brawlers = await self.brawlers()
 
-    def find_brawler(self, match, parameter=None) -> Optional[RETURN]:
-        # FIXME: raw code
-
-        brawlers = self._brawlers
-
-        if parameter == "name":
-            if isinstance(match, str):
-                match = match.upper()
-        elif parameter in ("number", "rank"):
-            if -len(brawlers) <= match < len(brawlers):
-                return brawlers[match]
-
-        if parameter is None:
-            for brawler in brawlers:
-                if match in brawler.values():
-                    return brawler
-        else:
-            for brawler in brawlers:
-                if brawler.get(parameter) == match:
-                    return brawler
-
-        return None  # returns explicitly
-
+    find_brawler = find_brawler
 
 class SyncClient(SyncWith):
     def __init__(
@@ -224,9 +235,10 @@ class SyncClient(SyncWith):
         self._brawlers_update = None
         self._min_update_time = min_update_time
 
-        self.update_brawlers()
-
         self._gets_handler = data_handler
+
+        self._brawlers = self.brawlers()
+        self.update_brawlers()
 
     def close(self) -> None:
         """Close session"""
@@ -276,3 +288,5 @@ class SyncClient(SyncWith):
 
         if time.time() - self._brawlers_update >= self._min_update_time:
             self._brawlers = self.brawlers()
+
+    find_brawler = find_brawler
