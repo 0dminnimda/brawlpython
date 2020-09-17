@@ -83,12 +83,13 @@ def find_brawler(self, match, parameter=None) -> Optional[RETURN]:
 
     brawlers = self._brawlers
 
-    if parameter == "name":
-        if isinstance(match, str):
-            match = match.upper()
-        else:
-            # returns explicitly
-            return None
+    if isinstance(match, str):
+        if parameter == "name":
+            if isinstance(match, str):
+                match = match.upper()
+            else:
+                # returns explicitly
+                return None
     elif parameter == "id":
         try:
             match = int(match)
@@ -181,16 +182,44 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._fetch(*args, **kwargs)
 
     @add_api_name(OFFIC)
-    async def brawlers(self, brawler: Union[int, str] = "",
-                       limit: Optional[int] = None) -> RETURN:
-
-        if limit is None:
-            limit = ""
-        return await self._fetch("brawlers", id=brawler, limit=limit)
+    async def players(self, tag: str) -> RETURN:
+        return await self._fetch("players", tag=tag)
 
     @add_api_name(OFFIC)
-    async def player(self, tag: str) -> RETURN:
-        return await self._fetch("players", tag=tag)
+    async def battlelog(self, tag: str) -> RETURN:
+        return await self._fetch("battlelog", tag=tag)
+
+    @add_api_name(OFFIC)
+    async def clubs(self, tag: str) -> RETURN:
+        return await self._fetch("clubs", tag=tag)
+
+    @add_api_name(OFFIC)
+    async def members(self, tag: str) -> RETURN:
+        return await self._fetch("members", tag=tag)
+
+    @add_api_name(OFFIC)
+    async def rankings(self, kind: str, brawler: Optional[Union[int, str]] = None, code: str = "global") -> RETURN:
+        if kind in KIND_KEYS:
+            kind = KINDS[kind]
+        elif kind not in KIND_VALS:
+            raise ValueError("kind must be in KINDS")
+
+        if kind == "brawlers":
+            if brawler is None:
+                pass
+            else:
+                if isinstance(brawler, int):
+                    if brawler < 16000000:
+                        parameter = "rank"
+                    else:
+                self.find_brawler
+
+        return await self._fetch("rankings", tag=tag)
+
+    @add_api_name(OFFIC)
+    async def brawlers(self, id: Union[int, str] = "",
+                       limit: Union[int, str] = "") -> RETURN:
+        return await self._fetch("brawlers", id=id, limit=limit)
 
     async def update_brawlers(self) -> None:
         if self._brawlers_update is None:
