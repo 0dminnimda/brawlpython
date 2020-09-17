@@ -31,7 +31,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import URLS, JSONSEQ, RETURN, HANDLER, NUMBER
+from .typedefs import URLS, JSONSEQ, JSONS, HANDLER, NUMBER, INTSTR
 import time
 
 __all__ = (
@@ -79,26 +79,16 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
     return res
 
 
-def find_brawler(self, match, parameter=None) -> Optional[RETURN]:
-
+def _find_brawler(self, match: INTSTR,
+                  parameter: str = None) -> Optional[JSONS]:
     brawlers = self._brawlers
+    count = len(brawlers)
 
-    if isinstance(match, str):
-        if parameter == "name":
-            if isinstance(match, str):
-                match = match.upper()
-            else:
-                # returns explicitly
-                return None
-    elif parameter == "id":
-        try:
-            match = int(match)
-        except TypeError:
-            # returns explicitly
-            return None
-    elif parameter == "rank":
-        if -len(brawlers) <= match < len(brawlers):
+    if isinstance(match, int):
+        if -count <= match < count:
             return brawlers[match]
+    elif isinstance(match, str):
+        match = match.upper()
 
     if parameter is None:
         for brawler in brawlers:
@@ -167,7 +157,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return self._gets_handler(self, resps)
 
     async def _fetch(self, path: str, from_json: bool = True,
-                     **kwargs: Any) -> RETURN:
+                     **kwargs: Any) -> JSONS:
 
         if self._current_api is None:
             self._current_api = self._default_api
@@ -182,43 +172,44 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._fetch(*args, **kwargs)
 
     @add_api_name(OFFIC)
-    async def players(self, tag: str) -> RETURN:
+    async def players(self, tag: str) -> JSONS:
         return await self._fetch("players", tag=tag)
 
     @add_api_name(OFFIC)
-    async def battlelog(self, tag: str) -> RETURN:
+    async def battlelog(self, tag: str) -> JSONS:
         return await self._fetch("battlelog", tag=tag)
 
     @add_api_name(OFFIC)
-    async def clubs(self, tag: str) -> RETURN:
+    async def clubs(self, tag: str) -> JSONS:
         return await self._fetch("clubs", tag=tag)
 
     @add_api_name(OFFIC)
-    async def members(self, tag: str) -> RETURN:
+    async def members(self, tag: str) -> JSONS:
         return await self._fetch("members", tag=tag)
 
     @add_api_name(OFFIC)
-    async def rankings(self, kind: str, brawler: Optional[Union[int, str]] = None, code: str = "global") -> RETURN:
+    async def rankings(self, kind: str,
+                       key: Optional[Union[int, str]] = None,
+                       code: str = "global") -> JSONS:
+
         if kind in KIND_KEYS:
             kind = KINDS[kind]
-        elif kind not in KIND_VALS:
-            raise ValueError("kind must be in KINDS")
 
         if kind == "brawlers":
-            if brawler is None:
+            if key is None:
                 pass
             else:
-                if isinstance(brawler, int):
-                    if brawler < 16000000:
+                if isinstance(key, int):
+                    if key < 16000000:
                         parameter = "rank"
                     else:
-                self.find_brawler
+                        self.find_brawler
 
-        return await self._fetch("rankings", tag=tag)
+        return await self._fetch("rankings", code=code, kind=kind, id=None)
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: Union[int, str] = "",
-                       limit: Union[int, str] = "") -> RETURN:
+                       limit: Union[int, str] = "") -> JSONS:
         return await self._fetch("brawlers", id=id, limit=limit)
 
     async def update_brawlers(self) -> None:
@@ -228,7 +219,8 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         if time.time() - self._brawlers_update >= self._min_update_time:
             self._brawlers = await self.brawlers()
 
-    find_brawler = find_brawler
+    find_brawler = _find_brawler
+
 
 class SyncClient(SyncWith):
     def __init__(
@@ -285,7 +277,7 @@ class SyncClient(SyncWith):
         return self._gets_handler(self, resps)
 
     def _fetch(self, path: str, from_json: bool = True,
-               **kwargs: Any) -> RETURN:
+               **kwargs: Any) -> JSONS:
 
         if self._current_api is None:
             self._current_api = self._default_api
@@ -301,14 +293,14 @@ class SyncClient(SyncWith):
 
     @add_api_name(OFFIC)
     def brawlers(self, brawler: Union[int, str] = "",
-                 limit: Optional[int] = None) -> RETURN:
+                 limit: Optional[int] = None) -> JSONS:
 
         if limit is None:
             limit = ""
         return self._fetch("brawlers", id=brawler, limit=limit)
 
     @add_api_name(OFFIC)
-    def player(self, tag: str) -> RETURN:
+    def player(self, tag: str) -> JSONS:
         return self._fetch("players", tag=tag)
 
     def update_brawlers(self) -> None:
@@ -318,4 +310,4 @@ class SyncClient(SyncWith):
         if time.time() - self._brawlers_update >= self._min_update_time:
             self._brawlers = self.brawlers()
 
-    find_brawler = find_brawler
+    find_brawler = _find_brawler

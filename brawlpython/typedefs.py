@@ -22,23 +22,30 @@ from typing import (
 
 __all__ = (
     "JSONV",
-    "JSONT",
+    "JSONTYPE",
     "JSONSEQ",
     "URLS",
-    "RETURN",
+    "BOOLS",
+    "JSONS",
     "HANDLER",
-    "NUMBER")
+    "NUMBER",
+    "INTSTR")
 
 # SEE: https://github.com/python/typing/issues/182
-JSONV = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-JSONT = Union[Dict[str, JSONV], List[JSONV]]
+JSONVALS = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
+JSONTYPE = Union[Dict[str, JSONVALS], List[JSONVALS]]
 
-JSONSEQ = Sequence[JSONT]
+JSONSEQ = Sequence[JSONTYPE]
+JSONS = Union[JSONTYPE, JSONSEQ]
 
-URLS = Union[List[str], str]
+# Tuple[]
 
-RETURN = Dict[str, Any]
+URLS = Union[Sequence[str], str]
+
+BOOLS = Union[Sequence[bool], bool]
 
 HANDLER = Callable[["AsyncClient", JSONSEQ], JSONSEQ]
 
 NUMBER = Union[int, float]
+
+INTSTR = TypeVar("INTSTR", int, str)
