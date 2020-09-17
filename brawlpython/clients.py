@@ -31,7 +31,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import URLS, JSONSEQ, JSONS, HANDLER, NUMBER, INTSTR
+from .typedefs import STRS, JSONSEQ, JSONS, HANDLER, NUMBER, INTSTR, BOOLS
 import time
 
 __all__ = (
@@ -156,61 +156,73 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         resps = await self.session.gets(*args, **kwargs)
         return self._gets_handler(self, resps)
 
-    async def _fetch(self, path: str, from_json: bool = True,
-                     **kwargs: Any) -> JSONS:
-
+    def _get_api(self):
         if self._current_api is None:
             self._current_api = self._default_api
 
-        api = self.api_s[self._current_api]
+        return self.api_s[self._current_api]
+
+    async def _fetch(self, path: str, from_json: bool = True,
+                     **kwargs: Any) -> JSONS:
+
+        api = self._get_api()
 
         return await self._gets(
             api.get(path, **kwargs), headers=api.headers, from_json=from_json)
 
+    async def _fetchs(self, paths: STRS, from_json: BOOLS = True,
+                      **kwargs: Any) -> JSONS:
+
+        api = self._get_api()
+
+        pars = rearrange_params(paths, **kwargs)
+
+        urls = [api.get(*a, **kw) for a, kw in pars]
+
+        return await self._gets(urls, headers=api.headers, from_json=from_json)
+
     @add_api_name(None)
     async def test_fetch(self, *args, **kwargs):
-        return await self._fetch(*args, **kwargs)
+        return await self._fetchs(*args, **kwargs)
 
     @add_api_name(OFFIC)
     async def players(self, tag: str) -> JSONS:
-        return await self._fetch("players", tag=tag)
+        return await self._fetchs("players", tag=tag)
 
     @add_api_name(OFFIC)
     async def battlelog(self, tag: str) -> JSONS:
-        return await self._fetch("battlelog", tag=tag)
+        return await self._fetchs("battlelog", tag=tag)
 
     @add_api_name(OFFIC)
     async def clubs(self, tag: str) -> JSONS:
-        return await self._fetch("clubs", tag=tag)
+        return await self._fetchs("clubs", tag=tag)
 
     @add_api_name(OFFIC)
     async def members(self, tag: str) -> JSONS:
-        return await self._fetch("members", tag=tag)
+        return await self._fetchs("members", tag=tag)
 
     @add_api_name(OFFIC)
     async def rankings(self, kind: str,
-                       key: Optional[Union[int, str]] = None,
+                       key: Optional[INTSTR] = None,
                        code: str = "global") -> JSONS:
 
         if kind in KIND_KEYS:
             kind = KINDS[kind]
 
-        if kind == "brawlers":
-            if key is None:
+        if key is None:
+            pass
+        else:
+            if kind == KINDS["b"]:
+                brawler = self.find_brawler(key)
+            elif kind == KINDS["ps"]:
                 pass
-            else:
-                if isinstance(key, int):
-                    if key < 16000000:
-                        parameter = "rank"
-                    else:
-                        self.find_brawler
 
-        return await self._fetch("rankings", code=code, kind=kind, id=None)
+        return await self._fetchs("rankings", code=code, kind=kind, id=None)
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: Union[int, str] = "",
                        limit: Union[int, str] = "") -> JSONS:
-        return await self._fetch("brawlers", id=id, limit=limit)
+        return await self._fetchs("brawlers", id=id, limit=limit)
 
     async def update_brawlers(self) -> None:
         if self._brawlers_update is None:

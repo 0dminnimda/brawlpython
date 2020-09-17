@@ -24,7 +24,7 @@ __all__ = (
     "JSONV",
     "JSONTYPE",
     "JSONSEQ",
-    "URLS",
+    "STRS",
     "BOOLS",
     "JSONS",
     "HANDLER",
@@ -40,7 +40,7 @@ JSONS = Union[JSONTYPE, JSONSEQ]
 
 # Tuple[]
 
-URLS = Union[Sequence[str], str]
+STRS = Union[Sequence[str], str]
 
 BOOLS = Union[Sequence[bool], bool]
 
@@ -48,4 +48,4 @@ HANDLER = Callable[["AsyncClient", JSONSEQ], JSONSEQ]
 
 NUMBER = Union[int, float]
 
-INTSTR = TypeVar("INTSTR", int, str)
+INTSTR = Union[int, str]
