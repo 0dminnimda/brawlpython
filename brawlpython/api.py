@@ -22,7 +22,8 @@ __all__ = (
 class API:
     def __init__(self, base: str, paths: Optional[Dict[str, str]] = None,
                  params: Optional[Dict[str, Dict[str, str]]] = None,
-                 token: Optional[str] = None) -> None:
+                 token: Optional[str] = None,
+                 hashtag: bool = True) -> None:
 
         if paths is None:
             paths = {}
@@ -51,6 +52,7 @@ class API:
         self.paths = paths
         self.params = params
         self.set_token(token)
+        self.hashtag = hashtag
 
     def __getattr__(self, name):
         get = self.paths.get(name)
@@ -83,7 +85,19 @@ class API:
         if len(used_parameters) != 0:
             url += "?" + "&".join(used_parameters)
 
+        get_tag = params.get("tag")
+        if get_tag is not None:
+            params["tag"] = self.remake_tag(get_tag)
+
         return optional_format(url, **params)
+
+    def remake_tag(self, tag: str) -> str:
+        tag = tag.strip("#")
+
+        if self.hashtag:
+            tag = "#" + tag
+
+        return parse.quote_plus(tag)
 
 
 official = {
@@ -133,5 +147,5 @@ UNOFFICS = (STAR,)
 api_defs = {
     OFFIC: API("api.brawlstars.com/v1", official, offic_params),
     CHI: API("api.brawlstars.cn/v1", official, offic_params),
-    STAR: API("api.starlist.pro", starlist),
+    STAR: API("api.starlist.pro", starlist, hashtag=False),
 }

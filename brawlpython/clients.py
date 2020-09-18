@@ -176,7 +176,6 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         api = self._get_api()
 
         pars = rearrange_params(paths, **kwargs)
-
         urls = [api.get(*a, **kw) for a, kw in pars]
 
         return await self._gets(urls, headers=api.headers, from_json=from_json)
