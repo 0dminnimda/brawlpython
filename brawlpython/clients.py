@@ -82,23 +82,46 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
 
 def _find_brawler(self, match: INTSTR,
                   parameter: str = None) -> Optional[JSONS]:
-    brawlers = self._brawlers
-    count = len(brawlers)
+    collectable = self._collectables["b"]
+    count = len(collectable)
 
     if isinstance(match, int):
         if -count <= match < count:
-            return brawlers[match]
+            return collectable[match]
     elif isinstance(match, str):
         match = match.upper()
 
     if parameter is None:
-        for brawler in brawlers:
-            if match in brawler.values():
-                return brawler
+        for part in collectable:
+            if match in part.values():
+                return part
     else:
-        for brawler in brawlers:
-            if brawler.get(parameter) == match:
-                return brawler
+        for part in collectable:
+            if part.get(parameter) == match:
+                return part
+
+    return None  # returns explicitly
+
+
+def _find_powerplay(self, match: INTSTR,
+                    parameter: str = None) -> Optional[JSONS]:
+    collectable = self._collectables["ps"]
+    count = len(collectable)
+
+    if isinstance(match, int):
+        if -count <= match < count:
+            return collectable[match]
+    elif isinstance(match, str):
+        match = match.upper()
+
+    if parameter is None:
+        for part in collectable:
+            if match in part.values():
+                return part
+    else:
+        for part in collectable:
+            if part.get(parameter) == match:
+                return part
 
     return None  # returns explicitly
 
@@ -134,13 +157,11 @@ class AsyncClient(AsyncInitObject, AsyncWith):
                 self.api_s[name].set_token(token)
 
         self._return_unit = return_unit
-        self._brawlers_update = None
-        self._min_update_time = min_update_time
-
         self._gets_handler = data_handler
 
-        self._brawlers = await self.brawlers()
-        await self.update_collectables()
+        self._collectables = {}
+        self._min_update_time = min_update_time
+        await self.update_collectables(True)
 
     async def close(self) -> None:
         """Close session"""
@@ -198,46 +219,59 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._fetchs("clubs", tag=tag)
 
     @add_api_name(OFFIC)
-    async def members(self, tag: str) -> JSONS:
-        return await self._fetchs("members", tag=tag)
+    async def members(self, tag: str, limit: INTSTR = 100) -> JSONS:
+        return await self._fetchs("members", tag=tag, limit=limit)
 
     @add_api_name(OFFIC)
     async def rankings(self, kind: str,
-                       key: INTSTR = "",
-                       code: str = "global") -> JSONS:
+                       key: Optional[INTSTR] = None,
+                       code: str = "global",
+                       limit: INTSTR = 200) -> JSONS:
 
         if kind in KIND_KEYS:
             kind = KINDS[kind]
 
-        # if key is None:
-        #     id_ = ""
-        # else:
         if kind == KINDS["b"]:
+            if key is None:
+                raise ValueError(
+                    "If the kind is b or brawlers, the key must be entered")
+
             brawler = self.find_brawler(key)
             if brawler is not None:
                 key = brawler["id"]
-
-            if key == "":
-                raise ValueError(
-                    "If the kind is b or brawlers, the key must be entered")
         elif kind == KINDS["ps"]:
-            pass
+            if key is None:
+                key = -1
 
-        return await self._fetchs("rankings", code=code, kind=kind, id=key)
+            powerplay = self.find_powerplay(key)
+            if powerplay is not None:
+                key = powerplay["id"]
+
+        return await self._fetchs("rankings", code=code,
+                                  kind=kind, id=key, limit=limit)
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: INTSTR = "",
                        limit: INTSTR = "") -> JSONS:
         return await self._fetchs("brawlers", id=id, limit=limit)
 
-    async def update_collectables(self) -> None:
-        if self._brawlers_update is None:
-            self._brawlers_update = time.time()
+    @add_api_name(OFFIC)
+    async def powerplay(self, code: str = "global", limit: int = 200) -> JSONS:
+        return await self._fetchs("rankings", code=code, limit=limit,
+                                  kind=KINDS["ps"], id="")
 
-        if time.time() - self._brawlers_update >= self._min_update_time:
-            self._brawlers = await self.brawlers()
+    @add_api_name(OFFIC)
+    async def update_collectables(self, now: bool = False) -> None:
+        if now or time.time() - self._last_update >= self._min_update_time:
+            self._collectables.update({
+                "b": await self.brawlers(api=self._current_api),
+                "ps": await self.powerplay(api=self._current_api)
+            })
+            self._last_update = time.time()
 
     find_brawler = _find_brawler
+
+    find_powerplay = _find_powerplay
 
 
 class SyncClient(SyncWith):
@@ -271,13 +305,13 @@ class SyncClient(SyncWith):
                 self.api_s[name].set_token(token)
 
         self._return_unit = return_unit
-        self._brawlers_update = None
+        self._last_update = None
         self._min_update_time = min_update_time
 
         self._gets_handler = data_handler
 
         self._brawlers = self.brawlers()
-        self.update_collectables()
+        self.update_brawlers()
 
     def close(self) -> None:
         """Close session"""
@@ -321,11 +355,13 @@ class SyncClient(SyncWith):
     def player(self, tag: str) -> JSONS:
         return self._fetch("players", tag=tag)
 
-    def update_collectables(self) -> None:
-        if self._brawlers_update is None:
-            self._brawlers_update = time.time()
+    def update_brawlers(self) -> None:
+        if self._last_update is None:
+            self._last_update = time.time()
 
-        if time.time() - self._brawlers_update >= self._min_update_time:
+        if time.time() - self._last_update >= self._min_update_time:
             self._brawlers = self.brawlers()
 
     find_brawler = _find_brawler
+
+    find_powerplay = _find_powerplay
