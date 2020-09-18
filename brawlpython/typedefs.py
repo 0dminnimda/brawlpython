@@ -38,6 +38,10 @@ JSONTYPE = Union[Dict[str, JSONVALS], List[JSONVALS]]
 JSONSEQ = Sequence[JSONTYPE]
 JSONS = Union[JSONTYPE, JSONSEQ]
 
+STRJSON = Union[str, JSONTYPE]
+
+STRDICT = Dict[str, str]
+
 # Tuple[]
 
 STRS = Union[Sequence[str], str]

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from . import __version__, __name__
+from .typedefs import STRDICT
 from .cache_utils import somecachedmethod, iscorofunc
 from asyncio import ensure_future as ensure, gather
 from collections.abc import ByteString, Collection, Mapping, Sized
@@ -28,7 +29,7 @@ __all__ = (
     "add_api_name")
 
 
-def default_headers() -> Dict[str, str]:
+def default_headers() -> STRDICT:
     return {
         "dnt": "1",
         "user-agent": f"{__name__}/{__version__} (Python {sys.version[:5]})",
@@ -39,7 +40,7 @@ def default_headers() -> Dict[str, str]:
     }
 
 
-def make_headers(token: str) -> Dict[str, str]:
+def make_headers(token: str) -> STRDICT:
     return {"authorization": f"Bearer {token}"}
 
 

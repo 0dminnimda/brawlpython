@@ -31,7 +31,8 @@ from typing import (
     TypeVar,
     Union,
 )
-from .typedefs import STRS, JSONSEQ, JSONS, HANDLER, NUMBER, INTSTR, BOOLS
+from .typedefs import (STRS, JSONSEQ, JSONS, HANDLER,
+                       NUMBER, INTSTR, BOOLS, STRDICT)
 import time
 
 __all__ = (
@@ -104,19 +105,19 @@ def _find_brawler(self, match: INTSTR,
 
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
-            self, tokens: Union[str, Dict[str, str]],
+            self, tokens: Union[str, STRDICT],
             api_s: Dict[str, API] = {},
             default_api: str = OFFIC,
-            return_unit_list: bool = True,
+            return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
+            data_handler: HANDLER = gets_handler,
 
             trust_env: bool = True,
             cache_ttl: NUMBER = 60,
             cache_limit: int = 1024,
             use_cache: bool = True,
             timeout: NUMBER = 30,
-            repeat_failed: int = 3,
-            data_handler: HANDLER = gets_handler) -> None:
+            repeat_failed: int = 3) -> None:
 
         self.session = await AsyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
@@ -132,14 +133,14 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             for name, token in tokens.items():
                 self.api_s[name].set_token(token)
 
-        self._return_unit = return_unit_list
+        self._return_unit = return_unit
         self._brawlers_update = None
         self._min_update_time = min_update_time
 
         self._gets_handler = data_handler
 
         self._brawlers = await self.brawlers()
-        await self.update_brawlers()
+        await self.update_collectables()
 
     async def close(self) -> None:
         """Close session"""
@@ -202,28 +203,34 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
     @add_api_name(OFFIC)
     async def rankings(self, kind: str,
-                       key: Optional[INTSTR] = None,
+                       key: INTSTR = "",
                        code: str = "global") -> JSONS:
 
         if kind in KIND_KEYS:
             kind = KINDS[kind]
 
-        if key is None:
-            pass
-        else:
-            if kind == KINDS["b"]:
-                brawler = self.find_brawler(key)
-            elif kind == KINDS["ps"]:
-                pass
+        # if key is None:
+        #     id_ = ""
+        # else:
+        if kind == KINDS["b"]:
+            brawler = self.find_brawler(key)
+            if brawler is not None:
+                key = brawler["id"]
 
-        return await self._fetchs("rankings", code=code, kind=kind, id=None)
+            if key == "":
+                raise ValueError(
+                    "If the kind is b or brawlers, the key must be entered")
+        elif kind == KINDS["ps"]:
+            pass
+
+        return await self._fetchs("rankings", code=code, kind=kind, id=key)
 
     @add_api_name(OFFIC)
-    async def brawlers(self, id: Union[int, str] = "",
-                       limit: Union[int, str] = "") -> JSONS:
+    async def brawlers(self, id: INTSTR = "",
+                       limit: INTSTR = "") -> JSONS:
         return await self._fetchs("brawlers", id=id, limit=limit)
 
-    async def update_brawlers(self) -> None:
+    async def update_collectables(self) -> None:
         if self._brawlers_update is None:
             self._brawlers_update = time.time()
 
@@ -235,19 +242,19 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
 class SyncClient(SyncWith):
     def __init__(
-            self, tokens: Union[str, Dict[str, str]],
+            self, tokens: Union[str, STRDICT],
             api_s: Dict[str, API] = {},
             default_api: str = OFFIC,
-            return_unit_list: bool = True,
+            return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
+            data_handler: HANDLER = gets_handler,
 
             trust_env: bool = True,
             cache_ttl: NUMBER = 60,
             cache_limit: int = 1024,
             use_cache: bool = True,
             timeout: NUMBER = 30,
-            repeat_failed: int = 3,
-            data_handler: HANDLER = gets_handler) -> None:
+            repeat_failed: int = 3) -> None:
 
         self.session = SyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
@@ -263,14 +270,14 @@ class SyncClient(SyncWith):
             for name, token in tokens.items():
                 self.api_s[name].set_token(token)
 
-        self._return_unit = return_unit_list
+        self._return_unit = return_unit
         self._brawlers_update = None
         self._min_update_time = min_update_time
 
         self._gets_handler = data_handler
 
         self._brawlers = self.brawlers()
-        self.update_brawlers()
+        self.update_collectables()
 
     def close(self) -> None:
         """Close session"""
@@ -314,7 +321,7 @@ class SyncClient(SyncWith):
     def player(self, tag: str) -> JSONS:
         return self._fetch("players", tag=tag)
 
-    def update_brawlers(self) -> None:
+    def update_collectables(self) -> None:
         if self._brawlers_update is None:
             self._brawlers_update = time.time()
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from .api_toolkit import make_headers
+from .typedefs import STRDICT
 
 from pyformatting import optional_format
 from typing import Any, Dict, Optional, Union
@@ -20,15 +21,10 @@ __all__ = (
 
 
 class API:
-    def __init__(self, base: str, paths: Optional[Dict[str, str]] = None,
-                 params: Optional[Dict[str, Dict[str, str]]] = None,
+    def __init__(self, base: str, paths: Optional[STRDICT] = None,
+                 params: Optional[Dict[str, STRDICT]] = None,
                  token: Optional[str] = None,
                  hashtag: bool = True) -> None:
-
-        if paths is None:
-            paths = {}
-        if params is None:
-            params = {}
 
         if not (base.startswith("http://") or base.startswith("https://")):
             base = "https://" + base
@@ -38,21 +34,10 @@ class API:
         if not base.endswith("/"):
             base += "/"
 
-        if len(set(params) - set(paths)) != 0:
-            raise ValueError(
-                "'params.keys()' must be in the 'paths.keys()'")
-
-        for name, path in paths.items():
-            paths[name] = parse.urljoin(base, path)
-
-            if params.get(name) is None:
-                params[name] = {}
-
         self.base = base
-        self.paths = paths
-        self.params = params
         self.set_token(token)
         self.hashtag = hashtag
+        self.append(paths, params)
 
     def __getattr__(self, name):
         get = self.paths.get(name)
@@ -61,7 +46,28 @@ class API:
 
         return get
 
-    def set_token(self, token: str):
+    def append(self, paths: Optional[STRDICT] = None,
+               params: Optional[Dict[str, STRDICT]] = None) -> None:
+
+        if paths is None:
+            paths = {}
+        if params is None:
+            params = {}
+
+        if len(set(params) - set(paths)) != 0:
+            raise ValueError(
+                "'params.keys()' must be in the 'paths.keys()'")
+
+        for name, path in paths.items():
+            paths[name] = parse.urljoin(self.base, path)
+
+            if params.get(name) is None:
+                params[name] = {}
+
+        self.paths = paths
+        self.params = params
+
+    def set_token(self, token: str) -> None:
         if token is None:
             self.headers = {}
         else:

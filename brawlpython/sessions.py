@@ -15,7 +15,7 @@ from .api_toolkit import (
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
 from .exceptions import WITH_CODE, UnexpectedResponseCode
-from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS
+from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS, STRJSON
 
 from typing import (
     Any,
@@ -51,7 +51,7 @@ __all__ = (
 # has nothing to do with the desired behavior
 
 def _raise_for_status(self, url: str, code: int,
-                      data: Union[Mapping[str, Any], str]) -> None:
+                      data: Union[JSONTYPE, str]) -> None:
 
     if isinstance(data, str):
         reason = "without a reason"
@@ -279,12 +279,15 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     async def _simple_get(
             self, url: str, from_json: bool = True,
-            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, str]:
+            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, STRJSON]:
         async with self.session.get(url, headers=dict(headers)) as response:
             code = response.status
             data = await response.text()
             if from_json:
-                data = json.loads(data)
+                try:
+                    data = json.loads(data)
+                except json.JSONDecodeError:
+                    pass
 
         return code, data
 
@@ -354,7 +357,7 @@ class SyncSession(SyncWith):
 
     def _simple_get(
             self, url: str, from_json: bool = True,
-            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, str]:
+            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, STRJSON]:
         with self.session.get(
                 url, timeout=self.timeout, headers=dict(headers)) as response:
             code = response.status_code
