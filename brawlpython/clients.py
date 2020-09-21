@@ -19,8 +19,8 @@ from typing import (
     Coroutine,
     Dict,
     Generator,
-    Generic,
     Iterable,
+    Generic,
     List,
     Mapping,
     Optional,
@@ -80,32 +80,9 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
     return res
 
 
-def _find_brawler(self, match: INTSTR,
+def _find_collectables(self, kind: str, match: INTSTR,
                   parameter: str = None) -> Optional[JSONS]:
-    collectable = self._collectables["b"]
-    count = len(collectable)
-
-    if isinstance(match, int):
-        if -count <= match < count:
-            return collectable[match]
-    elif isinstance(match, str):
-        match = match.upper()
-
-    if parameter is None:
-        for part in collectable:
-            if match in part.values():
-                return part
-    else:
-        for part in collectable:
-            if part.get(parameter) == match:
-                return part
-
-    return None  # returns explicitly
-
-
-def _find_powerplay(self, match: INTSTR,
-                    parameter: str = None) -> Optional[JSONS]:
-    collectable = self._collectables["ps"]
+    collectable = self._collectables[kind]
     count = len(collectable)
 
     if isinstance(match, int):
@@ -236,14 +213,14 @@ class AsyncClient(AsyncInitObject, AsyncWith):
                 raise ValueError(
                     "If the kind is b or brawlers, the key must be entered")
 
-            brawler = self.find_brawler(key)
+            brawler = self.find_collectables("b", key)
             if brawler is not None:
                 key = brawler["id"]
         elif kind == KINDS["ps"]:
             if key is None:
                 key = -1
 
-            powerplay = self.find_powerplay(key)
+            powerplay = self.find_collectables("ps", key)
             if powerplay is not None:
                 key = powerplay["id"]
 
@@ -260,6 +237,30 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._fetchs("rankings", code=code, limit=limit,
                                   kind=KINDS["ps"], id="")
 
+    @add_api_name(STAR)
+    async def events(self) -> JSONS:
+        return await self._fetchs("events")
+
+    @add_api_name(STAR)
+    async def icons(self) -> JSONS:
+        return await self._fetchs("icons")
+
+    @add_api_name(STAR)
+    async def maps(self, id: INTSTR = "") -> JSONS:
+        return await self._fetchs("maps", id=id)
+
+    @add_api_name(STAR)
+    async def gamemodes(self) -> JSONS:
+        return await self._fetchs("gamemodes")
+
+    @add_api_name(STAR)
+    async def clublog(self, tag: str) -> JSONS:
+        return await self._fetchs("clublog", tag=tag)
+
+    @add_api_name(STAR)
+    async def translations(self, code: str = "") -> JSONS:
+        return await self._fetchs("translations", code=code)
+
     @add_api_name(OFFIC)
     async def update_collectables(self, now: bool = False) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
@@ -269,9 +270,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             })
             self._last_update = time.time()
 
-    find_brawler = _find_brawler
-
-    find_powerplay = _find_powerplay
+    find_collectables = _find_collectables
 
 
 class SyncClient(SyncWith):
@@ -362,6 +361,4 @@ class SyncClient(SyncWith):
         if time.time() - self._last_update >= self._min_update_time:
             self._brawlers = self.brawlers()
 
-    find_brawler = _find_brawler
-
-    find_powerplay = _find_powerplay
+    find_collectables = _find_collectables
