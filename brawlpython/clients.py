@@ -32,7 +32,7 @@ from typing import (
     Union,
 )
 from .typedefs import (STRS, JSONSEQ, JSONS, HANDLER,
-                       NUMBER, INTSTR, BOOLS, STRDICT)
+                       NUMBER, INTSTR, BOOLS, STRDICT, AKW)
 import time
 
 __all__ = (
@@ -103,6 +103,37 @@ def _find_collectables(self, kind: str, match: INTSTR,
     return None  # returns explicitly
 
 
+def _rankings(kind: str,
+              key: Optional[INTSTR] = None,
+              code: str = "global",
+              limit: INTSTR = 200) -> JSONS:
+
+    if kind in KIND_KEYS:
+        kind = KINDS[kind]
+
+    if kind == KINDS["b"]:
+        if key is None:
+            raise ValueError(
+                "If the kind is b or brawlers, the key must be entered")
+
+        brawler = self.find_collectables("b", key)
+        if brawler is not None:
+            key = brawler["id"]
+    elif kind == KINDS["ps"]:
+        if key is None:
+            key = -1
+
+        powerplay = self.find_collectables("ps", key)
+        if powerplay is not None:
+            key = powerplay["id"]
+
+    if key is None:
+        key = ""
+
+    return ("rankings",), {"code":code,
+                          "kind":kind, "id":key, "limit":limit}
+
+
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
             self, tokens: Union[str, STRDICT],
@@ -169,12 +200,15 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._gets(
             api.get(path, **kwargs), headers=api.headers, from_json=from_json)
 
-    async def _fetchs(self, paths: STRS, from_json: BOOLS = True,
-                      **kwargs: Any) -> JSONS:
+    async def _fetchs(self, paths: Union[STRS, AKW], from_json: BOOLS = True,
+                      rearrange: bool = True, **kwargs: Any) -> JSONS:
 
         api = self._get_api()
 
-        pars = rearrange_params(paths, **kwargs)
+        if rearrange:
+            pars = rearrange_params(paths, **kwargs)
+        else:
+            pars = paths
         urls = [api.get(*a, **kw) for a, kw in pars]
 
         return await self._gets(urls, headers=api.headers, from_json=from_json)
@@ -204,28 +238,12 @@ class AsyncClient(AsyncInitObject, AsyncWith):
                        key: Optional[INTSTR] = None,
                        code: str = "global",
                        limit: INTSTR = 200) -> JSONS:
+        pars = rearrange_params(
+            kind, key=key, code=code, limit=limit)
 
-        if kind in KIND_KEYS:
-            kind = KINDS[kind]
-
-        if kind == KINDS["b"]:
-            if key is None:
-                raise ValueError(
-                    "If the kind is b or brawlers, the key must be entered")
-
-            brawler = self.find_collectables("b", key)
-            if brawler is not None:
-                key = brawler["id"]
-        elif kind == KINDS["ps"]:
-            if key is None:
-                key = -1
-
-            powerplay = self.find_collectables("ps", key)
-            if powerplay is not None:
-                key = powerplay["id"]
-
-        return await self._fetchs("rankings", code=code,
-                                  kind=kind, id=key, limit=limit)
+        return await self._fetchs(
+            [_rankings(*a, **kw) for a, kw in pars],
+            rearrange=False)
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: INTSTR = "",

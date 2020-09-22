@@ -29,7 +29,8 @@ __all__ = (
     "JSONS",
     "HANDLER",
     "NUMBER",
-    "INTSTR")
+    "INTSTR",
+    "AKW")
 
 # SEE: https://github.com/python/typing/issues/182
 JSONVALS = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
@@ -53,3 +54,5 @@ HANDLER = Callable[["AsyncClient", JSONSEQ], JSONSEQ]
 NUMBER = Union[int, float]
 
 INTSTR = Union[int, str]
+
+AKW = Tuple[Sequence[Any], Mapping[str, Any]]
