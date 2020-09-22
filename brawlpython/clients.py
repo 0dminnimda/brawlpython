@@ -81,7 +81,7 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
 
 
 def _find_collectables(self, kind: str, match: INTSTR,
-                  parameter: str = None) -> Optional[JSONS]:
+                       parameter: str = None) -> Optional[JSONS]:
     collectable = self._collectables[kind]
     count = len(collectable)
 
@@ -130,8 +130,8 @@ def _rankings(self, kind: str,
     if key is None:
         key = ""
 
-    return ("rankings",), {"code":code,
-                          "kind":kind, "id":key, "limit":limit}
+    return ("rankings",), {"code": code,
+                           "kind": kind, "id": key, "limit": limit}
 
 
 class AsyncClient(AsyncInitObject, AsyncWith):
@@ -242,8 +242,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             kind, key=key, code=code, limit=limit)
 
         return await self._fetchs(
-            [_rankings(self, *a, **kw) for a, kw in pars],
-            rearrange=False)
+            [_rankings(self, *a, **kw) for a, kw in pars], rearrange=False)
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: INTSTR = "",
@@ -350,7 +349,7 @@ class SyncClient(SyncWith):
         return self.api_s[self._current_api]
 
     def _fetch(self, path: str, from_json: bool = True,
-                     **kwargs: Any) -> JSONS:
+               **kwargs: Any) -> JSONS:
 
         api = self._get_api()
 
@@ -358,7 +357,7 @@ class SyncClient(SyncWith):
             api.get(path, **kwargs), headers=api.headers, from_json=from_json)
 
     def _fetchs(self, paths: Union[STRS, AKW], from_json: BOOLS = True,
-                      rearrange: bool = True, **kwargs: Any) -> JSONS:
+                rearrange: bool = True, **kwargs: Any) -> JSONS:
 
         api = self._get_api()
 
@@ -392,25 +391,24 @@ class SyncClient(SyncWith):
 
     @add_api_name(OFFIC)
     def rankings(self, kind: str,
-                       key: Optional[INTSTR] = None,
-                       code: str = "global",
-                       limit: INTSTR = 200) -> JSONS:
+                 key: Optional[INTSTR] = None,
+                 code: str = "global",
+                 limit: INTSTR = 200) -> JSONS:
         pars = rearrange_params(
             kind, key=key, code=code, limit=limit)
 
         return self._fetchs(
-            [_rankings(self, *a, **kw) for a, kw in pars],
-            rearrange=False)
+            [_rankings(self, *a, **kw) for a, kw in pars], rearrange=False)
 
     @add_api_name(OFFIC)
     def brawlers(self, id: INTSTR = "",
-                       limit: INTSTR = "") -> JSONS:
+                 limit: INTSTR = "") -> JSONS:
         return self._fetchs("brawlers", id=id, limit=limit)
 
     @add_api_name(OFFIC)
     def powerplay(self, code: str = "global", limit: int = 200) -> JSONS:
         return self._fetchs("rankings", code=code, limit=limit,
-                                  kind=KINDS["ps"], id="")
+                            kind=KINDS["ps"], id="")
 
     @add_api_name(STAR)
     def events(self) -> JSONS:
@@ -446,4 +444,3 @@ class SyncClient(SyncWith):
             self._last_update = time.time()
 
     find_collectables = _find_collectables
-
