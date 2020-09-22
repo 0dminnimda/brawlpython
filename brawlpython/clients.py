@@ -103,7 +103,7 @@ def _find_collectables(self, kind: str, match: INTSTR,
     return None  # returns explicitly
 
 
-def _rankings(kind: str,
+def _rankings(self, kind: str,
               key: Optional[INTSTR] = None,
               code: str = "global",
               limit: INTSTR = 200) -> JSONS:
@@ -150,7 +150,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             timeout: NUMBER = 30,
             repeat_failed: int = 3) -> None:
 
-        self.session = await AsyncSession(
+        self.session = AsyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
             cache_limit=cache_limit, use_cache=use_cache,
             timeout=timeout, repeat_failed=repeat_failed
@@ -169,11 +169,11 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         self._collectables = {}
         self._min_update_time = min_update_time
-        await self.update_collectables(True)
+        self.update_collectables(True)
 
     async def close(self) -> None:
         """Close session"""
-        await self.session.close()
+        self.session.close()
 
     @property
     def closed(self) -> bool:
@@ -242,7 +242,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             kind, key=key, code=code, limit=limit)
 
         return await self._fetchs(
-            [_rankings(*a, **kw) for a, kw in pars],
+            [_rankings(self, *a, **kw) for a, kw in pars],
             rearrange=False)
 
     @add_api_name(OFFIC)
@@ -322,13 +322,11 @@ class SyncClient(SyncWith):
                 self.api_s[name].set_token(token)
 
         self._return_unit = return_unit
-        self._last_update = None
-        self._min_update_time = min_update_time
-
         self._gets_handler = data_handler
 
-        self._brawlers = self.brawlers()
-        self.update_brawlers()
+        self._collectables = {}
+        self._min_update_time = min_update_time
+        self.update_collectables(True)
 
     def close(self) -> None:
         """Close session"""
@@ -345,38 +343,107 @@ class SyncClient(SyncWith):
         resps = self.session.gets(*args, **kwargs)
         return self._gets_handler(self, resps)
 
-    def _fetch(self, path: str, from_json: bool = True,
-               **kwargs: Any) -> JSONS:
-
+    def _get_api(self):
         if self._current_api is None:
             self._current_api = self._default_api
 
-        api = self.api_s[self._current_api]
+        return self.api_s[self._current_api]
+
+    def _fetch(self, path: str, from_json: bool = True,
+                     **kwargs: Any) -> JSONS:
+
+        api = self._get_api()
 
         return self._gets(
             api.get(path, **kwargs), headers=api.headers, from_json=from_json)
 
+    def _fetchs(self, paths: Union[STRS, AKW], from_json: BOOLS = True,
+                      rearrange: bool = True, **kwargs: Any) -> JSONS:
+
+        api = self._get_api()
+
+        if rearrange:
+            pars = rearrange_params(paths, **kwargs)
+        else:
+            pars = paths
+        urls = [api.get(*a, **kw) for a, kw in pars]
+
+        return self._gets(urls, headers=api.headers, from_json=from_json)
+
     @add_api_name(None)
     def test_fetch(self, *args, **kwargs):
-        return self._fetch(*args, **kwargs)
+        return self._fetchs(*args, **kwargs)
 
     @add_api_name(OFFIC)
-    def brawlers(self, brawler: Union[int, str] = "",
-                 limit: Optional[int] = None) -> JSONS:
-
-        if limit is None:
-            limit = ""
-        return self._fetch("brawlers", id=brawler, limit=limit)
+    def players(self, tag: str) -> JSONS:
+        return self._fetchs("players", tag=tag)
 
     @add_api_name(OFFIC)
-    def player(self, tag: str) -> JSONS:
-        return self._fetch("players", tag=tag)
+    def battlelog(self, tag: str) -> JSONS:
+        return self._fetchs("battlelog", tag=tag)
 
-    def update_brawlers(self) -> None:
-        if self._last_update is None:
+    @add_api_name(OFFIC)
+    def clubs(self, tag: str) -> JSONS:
+        return self._fetchs("clubs", tag=tag)
+
+    @add_api_name(OFFIC)
+    def members(self, tag: str, limit: INTSTR = 100) -> JSONS:
+        return self._fetchs("members", tag=tag, limit=limit)
+
+    @add_api_name(OFFIC)
+    def rankings(self, kind: str,
+                       key: Optional[INTSTR] = None,
+                       code: str = "global",
+                       limit: INTSTR = 200) -> JSONS:
+        pars = rearrange_params(
+            kind, key=key, code=code, limit=limit)
+
+        return self._fetchs(
+            [_rankings(self, *a, **kw) for a, kw in pars],
+            rearrange=False)
+
+    @add_api_name(OFFIC)
+    def brawlers(self, id: INTSTR = "",
+                       limit: INTSTR = "") -> JSONS:
+        return self._fetchs("brawlers", id=id, limit=limit)
+
+    @add_api_name(OFFIC)
+    def powerplay(self, code: str = "global", limit: int = 200) -> JSONS:
+        return self._fetchs("rankings", code=code, limit=limit,
+                                  kind=KINDS["ps"], id="")
+
+    @add_api_name(STAR)
+    def events(self) -> JSONS:
+        return self._fetchs("events")
+
+    @add_api_name(STAR)
+    def icons(self) -> JSONS:
+        return self._fetchs("icons")
+
+    @add_api_name(STAR)
+    async def maps(self, id: INTSTR = "") -> JSONS:
+        return self._fetchs("maps", id=id)
+
+    @add_api_name(STAR)
+    def gamemodes(self) -> JSONS:
+        return self._fetchs("gamemodes")
+
+    @add_api_name(STAR)
+    def clublog(self, tag: str) -> JSONS:
+        return self._fetchs("clublog", tag=tag)
+
+    @add_api_name(STAR)
+    def translations(self, code: str = "") -> JSONS:
+        return self._fetchs("translations", code=code)
+
+    @add_api_name(OFFIC)
+    def update_collectables(self, now: bool = False) -> None:
+        if now or time.time() - self._last_update >= self._min_update_time:
+            self._collectables.update({
+                "b": self.brawlers(api=self._current_api),
+                "ps": self.powerplay(api=self._current_api)
+            })
             self._last_update = time.time()
 
-        if time.time() - self._last_update >= self._min_update_time:
-            self._brawlers = self.brawlers()
-
     find_collectables = _find_collectables
+
