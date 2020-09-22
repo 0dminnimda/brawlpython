@@ -80,9 +80,9 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
     return res
 
 
-def _find_collectables(self, kind: str, match: INTSTR,
+def _find_save(self, kind: str, match: INTSTR,
                        parameter: str = None) -> Optional[JSONS]:
-    collectable = self._collectables[kind]
+    collectable = self._saves[kind]
     count = len(collectable)
 
     if isinstance(match, int):
@@ -116,14 +116,14 @@ def _rankings(self, kind: str,
             raise ValueError(
                 "If the kind is b or brawlers, the key must be entered")
 
-        brawler = self.find_collectables("b", key)
+        brawler = self.find_save("b", key)
         if brawler is not None:
             key = brawler["id"]
     elif kind == KINDS["ps"]:
         if key is None:
             key = -1
 
-        powerplay = self.find_collectables("ps", key)
+        powerplay = self.find_save("ps", key)
         if powerplay is not None:
             key = powerplay["id"]
 
@@ -150,7 +150,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             timeout: NUMBER = 30,
             repeat_failed: int = 3) -> None:
 
-        self.session = AsyncSession(
+        self.session = await AsyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
             cache_limit=cache_limit, use_cache=use_cache,
             timeout=timeout, repeat_failed=repeat_failed
@@ -167,9 +167,11 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         self._return_unit = return_unit
         self._gets_handler = data_handler
 
-        self._collectables = {}
+        self._saves = {}
         self._min_update_time = min_update_time
-        self.update_collectables(True)
+        self.update_saves(True)
+
+        self._collect_mode = False
 
     async def close(self) -> None:
         """Close session"""
@@ -183,8 +185,11 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return self.session.closed
 
     async def _gets(self, *args: Any, **kwargs: Any) -> JSONSEQ:
-        resps = await self.session.gets(*args, **kwargs)
-        return self._gets_handler(self, resps)
+        if self._collect_mode:
+            self._requests.append((args, kwargs))
+        else:
+            resps = await self.session.gets(*args, **kwargs)
+            return self._gets_handler(self, resps)
 
     def _get_api(self):
         if self._current_api is None:
@@ -200,18 +205,29 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._gets(
             api.get(path, **kwargs), headers=api.headers, from_json=from_json)
 
-    async def _fetchs(self, paths: Union[STRS, AKW], from_json: BOOLS = True,
-                      rearrange: bool = True, **kwargs: Any) -> JSONS:
+    async def _fetchs(self, paths: STRS = "", from_json: BOOLS = True,
+                      rearrange: AKW = [], **kwargs: Any) -> JSONS:
 
         api = self._get_api()
 
         if rearrange:
-            pars = rearrange_params(paths, **kwargs)
+            pars = rearrange
         else:
-            pars = paths
+            if paths == "":
+                raise ValueError("'paths' must be entered")
+            pars = rearrange_params(paths, **kwargs)
+
         urls = [api.get(*a, **kw) for a, kw in pars]
 
         return await self._gets(urls, headers=api.headers, from_json=from_json)
+
+    def collect(self):
+        self._collect_mode = True
+
+    async def release(self):
+        self._collect_mode = False
+
+        return 5
 
     @add_api_name(None)
     async def test_fetch(self, *args, **kwargs):
@@ -279,15 +295,15 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._fetchs("translations", code=code)
 
     @add_api_name(OFFIC)
-    async def update_collectables(self, now: bool = False) -> None:
+    async def update_saves(self, now: bool = False) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
-            self._collectables.update({
+            self._saves.update({
                 "b": await self.brawlers(api=self._current_api),
                 "ps": await self.powerplay(api=self._current_api)
             })
             self._last_update = time.time()
 
-    find_collectables = _find_collectables
+    find_save = _find_save
 
 
 class SyncClient(SyncWith):
@@ -323,9 +339,9 @@ class SyncClient(SyncWith):
         self._return_unit = return_unit
         self._gets_handler = data_handler
 
-        self._collectables = {}
+        self._saves = {}
         self._min_update_time = min_update_time
-        self.update_collectables(True)
+        self.update_saves(True)
 
     def close(self) -> None:
         """Close session"""
@@ -435,12 +451,12 @@ class SyncClient(SyncWith):
         return self._fetchs("translations", code=code)
 
     @add_api_name(OFFIC)
-    def update_collectables(self, now: bool = False) -> None:
+    def update_saves(self, now: bool = False) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
-            self._collectables.update({
+            self._saves.update({
                 "b": self.brawlers(api=self._current_api),
                 "ps": self.powerplay(api=self._current_api)
             })
             self._last_update = time.time()
 
-    find_collectables = _find_collectables
+    find_save = _find_save
