@@ -4,6 +4,7 @@ from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
 from cachetools import TTLCache
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from functools import update_wrapper
 from requests import Session
 
@@ -11,6 +12,7 @@ from .api_toolkit import (
     default_headers,
     isrequiredtype,
     multiparams,
+    _rearrange_params
 )
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc
@@ -277,12 +279,18 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     def can_use_cache(self) -> bool:
         return self._use_cache and isinstance(self.cache, TTLCache)
 
+    def cache_request(self, data, code):
+        id code == 200:
+            
+        
+
     async def _simple_get(
             self, url: str, from_json: bool = True,
             headers: Iterable[Iterable[str]] = {}) -> Tuple[int, STRJSON]:
         async with self.session.get(url, headers=dict(headers)) as response:
             code = response.status
             data = await response.text()
+            self.cache_request(data, code)
             if from_json:
                 try:
                     data = json.loads(data)
@@ -291,8 +299,26 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         return code, data
 
+    #_cached_get = somecachedmethod(func)
+
+    async def _no_cache(self, *args, **kwrags):
+        self._last_urls.append(args[0])
+        res = await self._simple_get(*args, **kwrags)
+        self._last_reqs.append((args, kwrags, res))
+
+    async def _pre_multi_get(self, params):
+        tasks = [ensure(func(*a, **kw)) for a, kw in params]
+        return await gather(*tasks)
+
+    async def _multi_get(self, *args, **kwargs):
+        params = _rearrange_params(args, kwargs)
+        return await self._pre_multi_get(params)
+
     _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
     _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
+
+    _get = retry_to_get_data(_no_cache)
+    _gets = retry_to_get_data(_multi_get)
 
     async def get(self, url: str, from_json: bool = True,
                   headers: JSONTYPE = {}) -> JSONTYPE:
