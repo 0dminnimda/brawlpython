@@ -15,7 +15,7 @@ from .api_toolkit import (
     _rearrange_params
 )
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
-from .cache_utils import somecachedmethod, iscorofunc
+from .cache_utils import somecachedmethod, iscorofunc, NaN
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS, STRJSON
 
@@ -224,6 +224,16 @@ def headers_handler(self, headers: JSONS) -> Union[JSONS, ]:
         return tuple(zip(headers.items()))
 
 
+def loads_json(self, data: str, from_json: bool = True) -> STRJSON:
+    if from_json:
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            pass
+
+    return data
+
+
 class AsyncSession(AsyncInitObject, AsyncWith):
     async def __init__(self, trust_env: bool = True,
                        cache_ttl: NUMBER = 60,
@@ -242,9 +252,9 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         )
 
         if use_cache:
-            self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+            self._cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
         else:
-            self.cache = None
+            self._cache = None
         self._use_cache = use_cache
 
         if repeat_failed > 1:
@@ -277,54 +287,55 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     @property
     def can_use_cache(self) -> bool:
-        return self._use_cache and isinstance(self.cache, TTLCache)
+        return self._use_cache
 
-    def cache_request(self, code, data):
-        id code == 200:
-            
-        k = key(*args, **kwargs)
-        cache = self.cache
-        get_k = cache.get(k, NaN)
-        if get_k != NaN:
-            return get_k
-        v = method(self, *args, **kwargs)
-        try:
-            cache[k] = v
-        except ValueError:
-            pass  # value too large
-        return v
+    async def _basic_get(self, url: str,
+                         headers: JSONTYPE = {}) -> Tuple[int, str]:
 
-    async def _cache_get(
-            self, url: str, from_json: bool = True,
-            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, STRJSON]:
-        async with self.session.get(url, headers=dict(headers)) as response:
+        async with self.session.get(url, headers=headers) as response:
             code = response.status
             data = await response.text()
-            self.cache_request(code, data)
-            if from_json:
-                try:
-                    data = json.loads(data)
-                except json.JSONDecodeError:
-                    pass
 
         return code, data
 
-    async def _simple_get(
-            self, url: str, from_json: bool = True,
-            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, STRJSON]:
-        async with self.session.get(url, headers=dict(headers)) as response:
-            code = response.status
-            data = await response.text()
-            self.cache_request(data, code)
-            if from_json:
-                try:
-                    data = json.loads(data)
-                except json.JSONDecodeError:
-                    pass
+    async def _verified_get(self, url: str, from_json: bool = True,
+                            headers: JSONTYPE = {}) -> Tuple[int, str]:
 
-        return code, data
+        self._basic_get(url, headers)
 
-    #_cached_get = somecachedmethod(func)
+    async def _verified_cached_get(self, url: str, from_json: bool = True,
+                                   headers: JSONTYPE = {}) -> Tuple[int, str]:
+
+        get_key = self._cache.get(url, NaN)
+        if get_key != NaN:
+            return get_key
+
+        value = self._simple_get(url, headers)
+        code, *_ = value
+
+        if code == 200:
+            try:
+                self._cache[url] = value
+            except ValueError:
+                pass  # value too large
+
+        return value
+
+    async def _json_get(self, url: str, from_json: bool = True,
+                        headers: JSONTYPE = {}) -> Tuple[int, STRJSON]:
+
+        code, data = self._verified_get(
+            url, from_json=from_json, headers=headers)
+
+        return code, loads_json(data, from_json)
+
+    async def _json_cached_get(self, url: str, from_json: bool = True,
+                               headers: JSONTYPE = {}) -> Tuple[int, STRJSON]:
+
+        code, data = self._verified_cached_get(
+            url, from_json=from_json, headers=headers)
+
+        return code, loads_json(data, from_json)
 
     async def _no_cache(self, *args, **kwrags):
         self._last_urls.append(args[0])
@@ -372,9 +383,9 @@ class SyncSession(SyncWith):
         self.session.headers.update(headers)
 
         if use_cache:
-            self.cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+            self._cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
         else:
-            self.cache = None
+            self._cache = None
         self._use_cache = use_cache
 
         self.timeout = timeout
@@ -404,7 +415,7 @@ class SyncSession(SyncWith):
 
     @property
     def can_use_cache(self) -> bool:
-        return self._use_cache and isinstance(self.cache, TTLCache)
+        return self._use_cache
 
     def _simple_get(
             self, url: str, from_json: bool = True,

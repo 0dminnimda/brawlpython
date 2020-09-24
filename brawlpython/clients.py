@@ -81,7 +81,7 @@ def gets_handler(self, data_list: JSONSEQ) -> JSONSEQ:
 
 
 def _find_save(self, kind: str, match: INTSTR,
-                       parameter: str = None) -> Optional[JSONS]:
+               parameter: str = None) -> Optional[JSONS]:
     collectable = self._saves[kind]
     count = len(collectable)
 
