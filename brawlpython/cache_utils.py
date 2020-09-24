@@ -92,6 +92,24 @@ def cachedmethod(key=keys.hashkey, lock=None):
     return decorator
 
 
+def halfcachedmethod(func):
+    def wrapper(self, *args, **kwargs):
+        self._k = key(*args, **kwargs)
+        get_k = self.cache.get(self._k, NaN)
+        if get_k != NaN:
+            return get_k
+        return method(self, *args, **kwargs)
+
+
+def async_halfcachedmethod(func):
+    def wrapper(self, *args, **kwargs):
+        self._k = key(*args, **kwargs)
+        get_k = self.cache.get(self._k, NaN)
+        if get_k != NaN:
+            return get_k
+        return method(self, *args, **kwargs)
+
+
 def iscorofunc(func):
     return asyncio.iscoroutinefunction(func)
 

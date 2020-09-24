@@ -279,10 +279,35 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     def can_use_cache(self) -> bool:
         return self._use_cache and isinstance(self.cache, TTLCache)
 
-    def cache_request(self, data, code):
+    def cache_request(self, code, data):
         id code == 200:
             
-        
+        k = key(*args, **kwargs)
+        cache = self.cache
+        get_k = cache.get(k, NaN)
+        if get_k != NaN:
+            return get_k
+        v = method(self, *args, **kwargs)
+        try:
+            cache[k] = v
+        except ValueError:
+            pass  # value too large
+        return v
+
+    async def _cache_get(
+            self, url: str, from_json: bool = True,
+            headers: Iterable[Iterable[str]] = {}) -> Tuple[int, STRJSON]:
+        async with self.session.get(url, headers=dict(headers)) as response:
+            code = response.status
+            data = await response.text()
+            self.cache_request(code, data)
+            if from_json:
+                try:
+                    data = json.loads(data)
+                except json.JSONDecodeError:
+                    pass
+
+        return code, data
 
     async def _simple_get(
             self, url: str, from_json: bool = True,
