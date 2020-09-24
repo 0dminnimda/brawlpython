@@ -2,6 +2,7 @@
 
 from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
+from asyncio import ensure_future, gather
 from cachetools import TTLCache
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,7 @@ from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS, STRJSON
 
 from typing import (
     Any,
+    Callable,
     Coroutine,
     Dict,
     Generator,
@@ -253,8 +255,10 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         if use_cache:
             self._cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
+            self._current_get = self._json_cached_get
         else:
             self._cache = None
+            self._current_get = self._json_get
         self._use_cache = use_cache
 
         if repeat_failed > 1:
@@ -301,7 +305,15 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     async def _verified_get(self, url: str, from_json: bool = True,
                             headers: JSONTYPE = {}) -> Tuple[int, str]:
 
-        self._basic_get(url, headers)
+        value = self._basic_get(url, headers)
+        code, *_ = value
+
+
+
+        if code != 200:
+            pass
+
+        return value
 
     async def _verified_cached_get(self, url: str, from_json: bool = True,
                                    headers: JSONTYPE = {}) -> Tuple[int, str]:
@@ -310,14 +322,18 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         if get_key != NaN:
             return get_key
 
-        value = self._simple_get(url, headers)
+        value = self._basic_get(url, headers)
         code, *_ = value
+
+
 
         if code == 200:
             try:
                 self._cache[url] = value
             except ValueError:
                 pass  # value too large
+        else:
+            pass
 
         return value
 
@@ -337,24 +353,22 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         return code, loads_json(data, from_json)
 
+    # def _current_get(self) -> Callable[
+    #         ["AsyncSession", str, bool, JSONTYPE], Tuple[int, STRJSON]]:
+
     async def _no_cache(self, *args, **kwrags):
         self._last_urls.append(args[0])
         res = await self._simple_get(*args, **kwrags)
         self._last_reqs.append((args, kwrags, res))
 
     async def _pre_multi_get(self, params):
-        tasks = [ensure(func(*a, **kw)) for a, kw in params]
+        get = self._current_get()
+        tasks = [ensure_future(get(*a, **kw)) for a, kw in params]
         return await gather(*tasks)
 
     async def _multi_get(self, *args, **kwargs):
         params = _rearrange_params(args, kwargs)
         return await self._pre_multi_get(params)
-
-    _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
-    _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
-
-    _get = retry_to_get_data(_no_cache)
-    _gets = retry_to_get_data(_multi_get)
 
     async def get(self, url: str, from_json: bool = True,
                   headers: JSONTYPE = {}) -> JSONTYPE:
