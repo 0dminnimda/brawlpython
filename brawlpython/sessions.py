@@ -215,6 +215,9 @@ def retry_to_get_data(func):
 
     return update_wrapper(wrapper, func)
 
+RTE = RuntimeError(
+    "self._attempts argument was changed"
+    " causing it to work incorrectly")
 
 def headers_handler(self, headers: JSONS) -> Union[JSONS, ]:
     if not self.can_use_cache:
@@ -255,10 +258,10 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         if use_cache:
             self._cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
-            self._current_get = self._json_cached_get
+            self._current_get = self._basic_cached_get
         else:
             self._cache = None
-            self._current_get = self._json_get
+            self._current_get = self._basic_get
         self._use_cache = use_cache
 
         if repeat_failed > 1:
@@ -268,6 +271,8 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         self._last_reqs = []
         self._last_urls = []
+        
+        self._retry = defaultdict(list)
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -302,20 +307,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         return code, data
 
-    async def _verified_get(self, url: str, from_json: bool = True,
-                            headers: JSONTYPE = {}) -> Tuple[int, str]:
-
-        value = self._basic_get(url, headers)
-        code, *_ = value
-
-
-
-        if code != 200:
-            pass
-
-        return value
-
-    async def _verified_cached_get(self, url: str, from_json: bool = True,
+    async def _basic_cached_get(self, url: str,
                                    headers: JSONTYPE = {}) -> Tuple[int, str]:
 
         get_key = self._cache.get(url, NaN)
@@ -325,33 +317,35 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         value = self._basic_get(url, headers)
         code, *_ = value
 
-
-
         if code == 200:
             try:
                 self._cache[url] = value
             except ValueError:
                 pass  # value too large
-        else:
-            pass
 
         return value
 
     async def _json_get(self, url: str, from_json: bool = True,
                         headers: JSONTYPE = {}) -> Tuple[int, STRJSON]:
 
-        code, data = self._verified_get(
+        code, data, *rest = self._current_get(
             url, from_json=from_json, headers=headers)
 
-        return code, loads_json(data, from_json)
+        return code, loads_json(data, from_json), *rest
 
-    async def _json_cached_get(self, url: str, from_json: bool = True,
-                               headers: JSONTYPE = {}) -> Tuple[int, STRJSON]:
+    async def _verified_get(self, *args, **kwargs) -> Tuple[int, str]:
 
-        code, data = self._verified_cached_get(
-            url, from_json=from_json, headers=headers)
+        value = self._json_get(*args, **kwargs)
+        code, *_ = value
 
-        return code, loads_json(data, from_json)
+
+
+        if code != 200:
+            pass
+
+        return value
+
+
 
     # def _current_get(self) -> Callable[
     #         ["AsyncSession", str, bool, JSONTYPE], Tuple[int, STRJSON]]:
@@ -369,6 +363,45 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     async def _multi_get(self, *args, **kwargs):
         params = _rearrange_params(args, kwargs)
         return await self._pre_multi_get(params)
+
+    async def _retrying_get(self, *args, **kwrags):
+        good_resps = defaultdict(list)
+        d_kwargs = defaultdict(list)
+        d_args = defaultdict(list)
+        for i in self._attempts:
+            if len(self._last_reqs) == 0:
+                in_args, in_kwrags = args, kwrags
+            else:
+                in_args, in_kwrags = d_args.values(), d_kwargs
+
+            self._last_reqs.clear()
+            self._last_urls.clear()
+
+            await func(self, *in_args, **in_kwrags)
+
+            d_args.clear()
+            d_kwargs.clear()
+
+            for a, kw, (code, data) in self._last_reqs:
+                url = a[0]
+                if code == 200:
+                    good_resps[url].append(data)
+                elif i == 0:
+                    self.raise_for_status(url, code, data)
+                else:
+                    for key, val in kw.items():
+                        d_kwargs[key].append(val)
+
+                    for i, val in enumerate(a):
+                        d_args[i].append(val)
+
+            if len(d_args) == len(d_kwargs) == 0:
+                ret = [good_resps[url].pop(0) for url in self._last_urls]
+                self._last_reqs.clear()
+                self._last_urls.clear()
+                return ret
+
+        raise RTE
 
     async def get(self, url: str, from_json: bool = True,
                   headers: JSONTYPE = {}) -> JSONTYPE:
