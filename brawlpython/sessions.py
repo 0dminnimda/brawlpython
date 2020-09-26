@@ -2,7 +2,7 @@
 
 from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
-from asyncio import ensure_future, gather
+from asyncio import ensure_future as ensure, gather
 from cachetools import TTLCache
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +18,7 @@ from .api_toolkit import (
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import somecachedmethod, iscorofunc, NaN
 from .exceptions import WITH_CODE, UnexpectedResponseCode
-from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS, STRJSON
+from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS, STRJSON, AKW
 
 from typing import (
     Any,
@@ -215,9 +215,11 @@ def retry_to_get_data(func):
 
     return update_wrapper(wrapper, func)
 
+
 RTE = RuntimeError(
     "self._attempts argument was changed"
     " causing it to work incorrectly")
+
 
 def headers_handler(self, headers: JSONS) -> Union[JSONS, ]:
     if not self.can_use_cache:
@@ -260,7 +262,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             self._cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
             self._current_get = self._basic_cached_get
         else:
-            self._cache = None
+            # self._cache = None
             self._current_get = self._basic_get
         self._use_cache = use_cache
 
@@ -271,8 +273,10 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         self._last_reqs = []
         self._last_urls = []
-        
-        self._retry = defaultdict(list)
+
+        self._retry = []
+
+        # self._retry = defaultdict(list)
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -308,7 +312,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         return code, data
 
     async def _basic_cached_get(self, url: str,
-                                   headers: JSONTYPE = {}) -> Tuple[int, str]:
+                                headers: JSONTYPE = {}) -> Tuple[int, str]:
 
         get_key = self._cache.get(url, NaN)
         if get_key != NaN:
@@ -338,33 +342,32 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         value = self._json_get(*args, **kwargs)
         code, *_ = value
 
-
-
         if code != 200:
-            pass
+            self._retry.append((args, kwargs))
 
         return value
 
-
-
-    # def _current_get(self) -> Callable[
-    #         ["AsyncSession", str, bool, JSONTYPE], Tuple[int, STRJSON]]:
-
-    async def _no_cache(self, *args, **kwrags):
-        self._last_urls.append(args[0])
-        res = await self._simple_get(*args, **kwrags)
-        self._last_reqs.append((args, kwrags, res))
-
     async def _pre_multi_get(self, params):
-        get = self._current_get()
-        tasks = [ensure_future(get(*a, **kw)) for a, kw in params]
+        tasks = [ensure(self._verified_get(*a, **kw)) for a, kw in params]
         return await gather(*tasks)
 
     async def _multi_get(self, *args, **kwargs):
         params = _rearrange_params(args, kwargs)
         return await self._pre_multi_get(params)
 
-    async def _retrying_get(self, *args, **kwrags):
+    async def _retrying_get(self, params: Iterable[AKW]):
+        for i in self._attempts:
+            self._retry.clear()
+
+            if i == self._attempts.start:
+                self._retry.extend(params)
+                init_pars = {i: None for i in self._retry}
+
+            await self._pre_multi_get(self._retry)
+
+            for 
+
+    async def _retrying_g_et(self, *args, **kwrags):
         good_resps = defaultdict(list)
         d_kwargs = defaultdict(list)
         d_args = defaultdict(list)
