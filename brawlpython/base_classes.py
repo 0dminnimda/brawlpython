@@ -89,7 +89,7 @@ class DefaultOrderedDict(OrderedDict):
         if self.default_factory is None:
             raise KeyError(key)
         self[key] = value = self.default_factory()
-        return self.default_factory()
+        return value
 
     @recursive_repr()
     def __repr__(self):

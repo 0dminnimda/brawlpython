@@ -25,6 +25,8 @@ __all__ = (
     "check_params",
     "_rearrange_params",
     "rearrange_params",
+    "_rearrange_args",
+    "rearrange_args",
     "multiparams",
     "add_api_name")
 
@@ -132,11 +134,20 @@ def _rearrange_params(args, kwargs):
                 val = next(val)
             current_kwargs[key] = val
 
-        yield current_args, current_kwargs
+        yield tuple(current_args), current_kwargs
 
 
 def rearrange_params(*args, **kwargs):
     return _rearrange_params(args, kwargs)
+
+
+def _rearrange_args(args):
+    for a, kw in _rearrange_params(args, {}):
+        yield a
+
+
+def rearrange_args(*args):
+    return _rearrange_args(args)
 
 
 def multiparams(func):

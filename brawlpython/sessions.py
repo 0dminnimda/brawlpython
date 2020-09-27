@@ -13,12 +13,14 @@ from .api_toolkit import (
     default_headers,
     isrequiredtype,
     multiparams,
-    _rearrange_params
-)
-from .base_classes import AsyncInitObject, AsyncWith, SyncWith
+    rearrange_params,
+    rearrange_args)
+from .base_classes import (AsyncInitObject, AsyncWith,
+                           SyncWith, DefaultOrderedDict)
 from .cache_utils import somecachedmethod, iscorofunc, NaN
 from .exceptions import WITH_CODE, UnexpectedResponseCode
-from .typedefs import STRS, JSONSEQ, JSONTYPE, JSONS, NUMBER, BOOLS, STRJSON, AKW
+from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
+                       NUMBER, BOOLS, STRJSON, AKW, STRBYTE)
 
 from typing import (
     Any,
@@ -41,7 +43,10 @@ from typing import (
 try:
     import orjson as json
 except ImportError:
-    import json
+    try:
+        import ujson as json
+    except ImportError:
+        import json
 
 # from unicodedata import normalize  # "NFKC" or "NFKD"
 
@@ -216,22 +221,31 @@ def retry_to_get_data(func):
     return update_wrapper(wrapper, func)
 
 
-RTE = RuntimeError(
+retry_end = RuntimeError(
     "self._attempts argument was changed"
     " causing it to work incorrectly")
 
+not_scheduled = RuntimeError(
+    "scheduled function calls with these parameters have"
+    " already been executed, this call is not scheduled")
 
-def headers_handler(self, headers: JSONS) -> Union[JSONS, ]:
-    if not self.can_use_cache:
-        return headers
 
+def _headers_handler(self, headers: JSONS) -> STRBYTE:
+    # TODO: use self._headers_dumps to not dumps twice
     if isrequiredtype(headers):
-        return [tuple(zip(headers.items())) for header in headers]
+        res = []
+        for hdrs in headers:
+            dumps = json.dumps(hdrs)
+            res.append(dumps)
+            self._headers_dumps[dumps] = hdrs
+        return res
     else:
-        return tuple(zip(headers.items()))
+        dumps = json.dumps(headers)
+        self._headers_dumps[dumps] = headers
+        return dumps
 
 
-def loads_json(self, data: str, from_json: bool = True) -> STRJSON:
+def loads_json(data: str, from_json: bool = True) -> STRJSON:
     if from_json:
         try:
             data = json.loads(data)
@@ -266,27 +280,24 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             self._current_get = self._basic_get
         self._use_cache = use_cache
 
-        if repeat_failed > 1:
-            self._attempts = range(repeat_failed - 1, -1, -1)
-        else:
-            self._attempts = (0)
-
-        self._last_reqs = []
-        self._last_urls = []
+        if repeat_failed < 0:
+            repeat_failed = 0
+        self._attempts = range(repeat_failed, -1, -1)
 
         self._retry = []
+        self._headers_dumps = {}
+        self._init_pars = DefaultOrderedDict(list)
 
-        # self._retry = defaultdict(list)
+        self._debug = False
 
     async def close(self) -> None:
         """Close underlying connector.
         Release all acquired resources.
         """
         if not self.closed:
-            # XXX: https://github.com/aio-libs/aiohttp/issues/1925
+            # SEE: https://github.com/aio-libs/aiohttp/issues/1925
             # https://docs.aiohttp.org/en/stable/client_advanced.html#graceful-shutdown
             await self.session.close()
-            # Zero-sleep to allow underlying connections to close
             await asyncio.sleep(0.300)
 
     @property
@@ -298,12 +309,14 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     raise_for_status = _raise_for_status
 
+    headers_handler = _headers_handler
+
     @property
     def can_use_cache(self) -> bool:
         return self._use_cache
 
     async def _basic_get(self, url: str,
-                         headers: JSONTYPE = {}) -> Tuple[int, str]:
+                         headers: JSONTYPE) -> Tuple[int, str]:
 
         async with self.session.get(url, headers=headers) as response:
             code = response.status
@@ -312,13 +325,13 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         return code, data
 
     async def _basic_cached_get(self, url: str,
-                                headers: JSONTYPE = {}) -> Tuple[int, str]:
+                                headers: JSONTYPE) -> Tuple[int, str]:
 
         get_key = self._cache.get(url, NaN)
         if get_key != NaN:
             return get_key
 
-        value = self._basic_get(url, headers)
+        value = await self._basic_get(url, headers)
         code, *_ = value
 
         if code == 200:
@@ -329,94 +342,72 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         return value
 
-    async def _json_get(self, url: str, from_json: bool = True,
-                        headers: JSONTYPE = {}) -> Tuple[int, STRJSON]:
+    async def _verified_json_get(self, url: str, from_json: bool,
+                                 headers: STRBYTE) -> None:
 
-        code, data, *rest = self._current_get(
-            url, from_json=from_json, headers=headers)
+        args = (url, from_json, headers)
 
-        return code, loads_json(data, from_json), *rest
+        headers = self._headers_dumps[headers]
+        code, data = await self._current_get(
+            url, headers)
 
-    async def _verified_get(self, *args, **kwargs) -> Tuple[int, str]:
-
-        value = self._json_get(*args, **kwargs)
-        code, *_ = value
+        data = loads_json(data, from_json)
 
         if code != 200:
-            self._retry.append((args, kwargs))
-
-        return value
-
-    async def _pre_multi_get(self, params):
-        tasks = [ensure(self._verified_get(*a, **kw)) for a, kw in params]
-        return await gather(*tasks)
-
-    async def _multi_get(self, *args, **kwargs):
-        params = _rearrange_params(args, kwargs)
-        return await self._pre_multi_get(params)
-
-    async def _retrying_get(self, params: Iterable[AKW]):
-        for i in self._attempts:
-            self._retry.clear()
-
-            if i == self._attempts.start:
-                self._retry.extend(params)
-                init_pars = {i: None for i in self._retry}
-
-            await self._pre_multi_get(self._retry)
-
-            for 
-
-    async def _retrying_g_et(self, *args, **kwrags):
-        good_resps = defaultdict(list)
-        d_kwargs = defaultdict(list)
-        d_args = defaultdict(list)
-        for i in self._attempts:
-            if len(self._last_reqs) == 0:
-                in_args, in_kwrags = args, kwrags
+            if self._i == 0:
+                self.raise_for_status(url, code, data)
+            self._retry.append(args)
+        else:
+            arr = self._init_pars[args]
+            if None in arr:
+                arr[arr.index(None)] = data
             else:
-                in_args, in_kwrags = d_args.values(), d_kwargs
+                raise not_scheduled
 
-            self._last_reqs.clear()
-            self._last_urls.clear()
+    async def _params_get(self, params: Tuple[ARGS]):
+        tasks = [ensure(self._verified_json_get(*a)) for a in params]
+        await gather(*tasks)
 
-            await func(self, *in_args, **in_kwrags)
+    async def _retrying_get(self, in_params: Tuple[ARGS]):
+        self._init_pars.clear()
+        self._retry.clear()
+        for i in self._attempts:
+            self._i = i
+            if i == self._attempts.start:
+                self._retry.extend(in_params)
+                for a in self._retry:
+                    self._init_pars[a].append(None)
 
-            d_args.clear()
-            d_kwargs.clear()
+            params = self._retry.copy()
 
-            for a, kw, (code, data) in self._last_reqs:
-                url = a[0]
-                if code == 200:
-                    good_resps[url].append(data)
-                elif i == 0:
-                    self.raise_for_status(url, code, data)
-                else:
-                    for key, val in kw.items():
-                        d_kwargs[key].append(val)
+            self._retry.clear()
+            await self._params_get(params)
 
-                    for i, val in enumerate(a):
-                        d_args[i].append(val)
+            if len(self._retry) == 0:
+                if not self._debug:
+                    self._init_pars.clear()
+                ret = [self._init_pars[key].pop(0) for key in self._init_pars]
+                return list(self._init_pars.values())
 
-            if len(d_args) == len(d_kwargs) == 0:
-                ret = [good_resps[url].pop(0) for url in self._last_urls]
-                self._last_reqs.clear()
-                self._last_urls.clear()
-                return ret
-
-        raise RTE
+        if not self._debug:
+            self._init_pars.clear()
+            self._retry.clear()
+        raise retry_end
 
     async def get(self, url: str, from_json: bool = True,
                   headers: JSONTYPE = {}) -> JSONTYPE:
-        return (await self._get(
-            url, from_json=from_json,
-            headers=headers_handler(self, headers)))[0]
+        return (await self.gets(url, from_json=from_json, headers=headers))[0]
+
+    async def get_params(self, params: Iterable[AKW]) -> JSONSEQ:
+        return await self._retrying_get(params)
 
     async def gets(self, urls: STRS, from_json: BOOLS = True,
                    headers: JSONS = {}) -> JSONSEQ:
-        return await self._gets(
-            urls, from_json=from_json,
-            headers=headers_handler(self, headers))
+
+        params = rearrange_args(
+            urls, from_json, self.headers_handler(headers))
+
+        return await self.get_params(params)
 
 
 class SyncSession(SyncWith):

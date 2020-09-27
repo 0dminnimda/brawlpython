@@ -30,7 +30,8 @@ __all__ = (
     "HANDLER",
     "NUMBER",
     "INTSTR",
-    "AKW")
+    "AKW",
+    "STRBYTE")
 
 # SEE: https://github.com/python/typing/issues/182
 JSONVALS = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
@@ -55,4 +56,8 @@ NUMBER = Union[int, float]
 
 INTSTR = Union[int, str]
 
-AKW = Tuple[Sequence[Any], Mapping[str, Any]]
+ARGS = Sequence[Any]
+
+AKW = Tuple[ARGS, Mapping[str, Any]]
+
+STRBYTE = Union[str, bytes]
