@@ -73,8 +73,7 @@ def isrequiredtype(obj):
         iscollection(obj)
         and not isliterals(obj)
         and not ismapping(obj)
-        and not isempty(obj)
-    )
+        and not isempty(obj))
 
 
 def same(elements):
