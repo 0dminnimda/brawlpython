@@ -386,8 +386,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             if len(self._retry) == 0:
                 if not self._debug:
                     self._init_pars.clear()
-                ret = [self._init_pars[key].pop(0) for key in self._init_pars]
-                return list(self._init_pars.values())
+                return [self._init_pars[key].pop(0) for key in self._init_pars]
 
         if not self._debug:
             self._init_pars.clear()
