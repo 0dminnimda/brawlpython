@@ -166,12 +166,11 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         self._return_unit = return_unit
         self._gets_handler = data_handler
+        self._collect_mode = False
 
         self._saves = {}
         self._min_update_time = min_update_time
-        self.update_saves(True)
-
-        self._collect_mode = False
+        await self.update_saves(True)
 
     async def close(self) -> None:
         """Close session"""
@@ -186,10 +185,14 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
     async def _gets(self, *args: Any, **kwargs: Any) -> JSONSEQ:
         if self._collect_mode:
-            self._requests.append((args, kwargs))
+            self._requests.append((*args, *kwargs.values()))
+            return None
+
+        if self._release_mode:
+            resps = await self.session._retrying_get(self._requests)
         else:
             resps = await self.session.gets(*args, **kwargs)
-            return self._gets_handler(self, resps)
+        return self._gets_handler(self, resps)
 
     def _get_api(self):
         if self._current_api is None:
@@ -249,16 +252,24 @@ class AsyncClient(AsyncInitObject, AsyncWith):
     async def members(self, tag: str, limit: INTSTR = 100) -> JSONS:
         return await self._fetchs("members", tag=tag, limit=limit)
 
+    async def _one_rankings(self, *args, **kwargs):
+        a, kw = _rankings(self, *args, **kwargs)
+        return await self._fetchs(*a, **kw)
+
     @add_api_name(OFFIC)
     async def rankings(self, kind: str,
                        key: Optional[INTSTR] = None,
                        code: str = "global",
                        limit: INTSTR = 200) -> JSONS:
+
         pars = rearrange_params(
             kind, key=key, code=code, limit=limit)
 
-        return await self._fetchs(
-            [_rankings(self, *a, **kw) for a, kw in pars], rearrange=False)
+        self.collect()
+        for a, kw in pars:
+            await self._one_rankings(*a, **kw)
+
+        return await self.release()
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: INTSTR = "",

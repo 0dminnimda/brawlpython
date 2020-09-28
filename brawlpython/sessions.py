@@ -224,6 +224,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         await gather(*tasks)
 
     async def _retrying_get(self, in_params: Tuple[ARGS]):
+        in_params = tuple(in_params)
         self._init_pars.clear()
         self._retry.clear()
         for i in self._attempts:
@@ -239,9 +240,11 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             await self._params_get(params)
 
             if len(self._retry) == 0:
+                res = [self._init_pars[key].pop(0) for key in in_params]
+
                 if not self._debug:
                     self._init_pars.clear()
-                return [self._init_pars[key].pop(0) for key in self._init_pars]
+                return res
 
         if not self._debug:
             self._init_pars.clear()
@@ -252,8 +255,8 @@ class AsyncSession(AsyncInitObject, AsyncWith):
                   headers: JSONTYPE = {}) -> JSONTYPE:
         return (await self.gets(url, from_json=from_json, headers=headers))[0]
 
-    async def get_params(self, params: Iterable[AKW]) -> JSONSEQ:
-        return await self._retrying_get(params)
+    # async def get_params(self, params: Iterable[ARGS]) -> JSONSEQ:
+    #     return await self._retrying_get(params)
 
     async def gets(self, urls: STRS, from_json: BOOLS = True,
                    headers: JSONS = {}) -> JSONSEQ:
@@ -261,7 +264,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         params = rearrange_args(
             urls, from_json, self.headers_handler(headers))
 
-        return await self.get_params(params)
+        return await self._retrying_get(params)
 
 
 class SyncSession(SyncWith):
@@ -324,8 +327,8 @@ class SyncSession(SyncWith):
 
         return code, data
 
-    _get = retry_to_get_data(mix_all_gets(False)(_simple_get))
-    _gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
+    #_get = retry_to_get_data(mix_all_gets(False)(_simple_get))
+    #_gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
     def get(self, url: str, from_json: bool = True,
             headers: JSONTYPE = {}) -> JSONTYPE:
