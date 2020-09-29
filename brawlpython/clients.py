@@ -220,7 +220,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         api = self._get_api()
 
         pars = rearrange_params(paths, **kwargs)
-        urls = [api.get(*a, **kw) for a, kw in pars]
+        urls = [api.make_url(*a, **kw) for a, kw in pars]
 
         headers = self.session.headers_handler(api.headers)
         return await self._gets(urls, from_json, headers)
@@ -267,8 +267,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
                        code: str = "global",
                        limit: INTSTR = 200) -> JSONS:
 
-        pars = rearrange_params(
-            kind, key=key, code=code, limit=limit)
+        pars = rearrange_params(kind, key=key, code=code, limit=limit)
 
         self.collect()
         for a, kw in pars:
@@ -278,13 +277,13 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: INTSTR = "",
-                       limit: INTSTR = "") -> JSONS:
+                       limit: INTSTR = 200) -> JSONS:
         return await self._fetchs("brawlers", id=id, limit=limit)
 
     @add_api_name(OFFIC)
     async def powerplay(self, code: str = "global", limit: int = 200) -> JSONS:
         return await self._fetchs("rankings", code=code, limit=limit,
-                                  kind=KINDS["ps"], id="")
+                                  kind=KINDS["ps"])
 
     @add_api_name(STAR)
     async def events(self) -> JSONS:

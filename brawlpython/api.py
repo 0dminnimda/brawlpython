@@ -3,7 +3,7 @@
 from .api_toolkit import make_headers
 from .typedefs import STRDICT
 
-from pyformatting import optional_format
+from pyformatting import defaultformatter
 from typing import Any, Dict, Optional, Union
 import urllib.parse as parse
 
@@ -20,52 +20,39 @@ __all__ = (
     "UNOFFICS")
 
 
+default_format = defaultformatter(str)
+
+
 class API:
-    def __init__(self, base: str, paths: Optional[STRDICT] = None,
-                 params: Optional[Dict[str, STRDICT]] = None,
-                 token: Optional[str] = None,
+
+    __slots__ = "base", "endpoints", "hashtag", "headers"
+
+    def __init__(self, base: str, endpoints: STRDICT = {},
                  hashtag: bool = True) -> None:
 
-        if not (base.startswith("http://") or base.startswith("https://")):
+        http = base.startswith("http://")
+        https = base.startswith("https://")
+
+        if not (http or https):
             base = "https://" + base
-        elif base.startswith("http://"):
+        elif http:
             base = "https://" + base[len("http://"):]
 
         if not base.endswith("/"):
             base += "/"
 
         self.base = base
-        self.set_token(token)
+        self.endpoints = {}
+        self.append(endpoints)
         self.hashtag = hashtag
-        self.append(paths, params)
 
-    def __getattr__(self, name):
-        get = self.paths.get(name)
-        if get is None:
-            raise AttributeError(f"'API' object has no attribute '{name}'")
+    def append(self, endpoints: STRDICT) -> None:
+        for name, path in endpoints.items():
+            if name == "base":
+                raise ValueError("names must be not 'base'")
+            endpoints[name] = parse.urljoin(self.base, path)
 
-        return get
-
-    def append(self, paths: Optional[STRDICT] = None,
-               params: Optional[Dict[str, STRDICT]] = None) -> None:
-
-        if paths is None:
-            paths = {}
-        if params is None:
-            params = {}
-
-        if len(set(params) - set(paths)) != 0:
-            raise ValueError(
-                "'params.keys()' must be in the 'paths.keys()'")
-
-        for name, path in paths.items():
-            paths[name] = parse.urljoin(self.base, path)
-
-            if params.get(name) is None:
-                params[name] = {}
-
-        self.paths = paths
-        self.params = params
+        self.endpoints.update(endpoints)
 
     def set_token(self, token: str) -> None:
         if token is None:
@@ -73,29 +60,22 @@ class API:
         else:
             self.headers = make_headers(token)
 
-    def get(self, name: str, **params: Any) -> str:
-        url = getattr(self, name)
-        if len(params) == 0:
-            return url
+    def get(self, name: str) -> str:
+        if name == "base":
+            return self.base
 
-        for_format = {}
-        used_parameters = []
+        get = self.endpoints.get(name)
+        if get is None:
+            raise ValueError("`name` must be specified")
 
-        for param, val in params.items():
-            get = self.params[name].get(param)
-            if get is None:
-                for_format.update({param: val})
-            elif get != val:
-                used_parameters.append(f"{param}={val}")
+        return get
 
-        if len(used_parameters) != 0:
-            url += "?" + "&".join(used_parameters)
+    def make_url(self, name: str, **params) -> str:
+        tag = params.get("tag")
+        if tag is not None:
+            params["tag"] = self.remake_tag(tag)
 
-        get_tag = params.get("tag")
-        if get_tag is not None:
-            params["tag"] = self.remake_tag(get_tag)
-
-        return optional_format(url, **params)
+        return default_format(self.get(name), **params)
 
     def remake_tag(self, tag: str) -> str:
         tag = tag.strip("#")
@@ -106,22 +86,17 @@ class API:
         return parse.quote_plus(tag)
 
 
+# before and after - is so impractical that I suppose nobody will use this
+# that's why I decided not to include it here
+limit_str = "?limit={limit}"
 official = {
     "players": "players/{tag}",
     "battlelog": "players/{tag}/battlelog",
     "clubs": "clubs/{tag}",
-    "members": "clubs/{tag}/members",
-    "rankings": "rankings/{code}/{kind}/{id}",
-    "brawlers": "brawlers/{id}",
-}
+    "members": "clubs/{tag}/members" + limit_str,
+    "rankings": "rankings/{code}/{kind}/{id}" + limit_str,
+    "brawlers": "brawlers/{id}" + limit_str}
 
-# before and after - this is so impractical that I suppose nobody will use this
-# that's why I decided not to include it here
-offic_params = {
-    "members": {"limit": "100"},
-    "rankings": {"limit": "200"},
-    "brawlers": {"limit": ""},
-}
 
 starlist = {
     "events": "events",
@@ -130,19 +105,15 @@ starlist = {
     "maps": "maps/{id}",
     "gamemodes": "gamemodes",
     "clublog": "clublog/{tag}",
-    "translations": "translations/{code}",
-}
+    "translations": "translations/{code}"}
 
 KINDS = {
     "b": "brawlers",
     "c": "clubs",
     "p": "players",
-    "ps": "powerplay/seasons",
-}
-
+    "ps": "powerplay/seasons"}
 KIND_VALS = list(KINDS.values())
 KIND_KEYS = list(KINDS.keys())
-
 
 OFFIC = "official"
 CHI = "chinese"
@@ -151,7 +122,7 @@ OFFICS = (OFFIC, CHI)
 UNOFFICS = (STAR,)
 
 api_defs = {
-    OFFIC: API("api.brawlstars.com/v1", official, offic_params),
-    CHI: API("api.brawlstars.cn/v1", official, offic_params),
+    OFFIC: API("api.brawlstars.com/v1", official),
+    CHI: API("api.brawlstars.cn/v1", official),
     STAR: API("api.starlist.pro", starlist, hashtag=False),
 }
