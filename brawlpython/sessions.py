@@ -14,7 +14,8 @@ from .api_toolkit import (
     isrequiredtype,
     multiparams,
     rearrange_params,
-    rearrange_args)
+    rearrange_args,
+    isliterals)
 from .base_classes import (AsyncInitObject, AsyncWith,
                            SyncWith, DefaultOrderedDict)
 from .cache_utils import somecachedmethod, iscorofunc, NaN
@@ -94,6 +95,9 @@ def _headers_handler(self, headers: JSONS) -> STRBYTE:
             res.append(dumps)
             self._headers_dumps[dumps] = hdrs
         return res
+    elif isliterals(headers):
+        self._headers_dumps[headers] = json.loads(headers)
+        return headers
     else:
         dumps = json.dumps(headers)
         self._headers_dumps[dumps] = headers
@@ -201,6 +205,12 @@ class AsyncSession(AsyncInitObject, AsyncWith):
                                  headers: STRBYTE) -> None:
 
         args = (url, from_json, headers)
+
+        print(self._headers_dumps)
+        print()
+        print(headers)
+        print()
+        print()
 
         headers = self._headers_dumps[headers]
         code, data = await self._current_get(

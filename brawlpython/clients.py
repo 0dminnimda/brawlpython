@@ -6,7 +6,7 @@ from .api import (
     api_defs, API, KINDS, KIND_VALS, KIND_KEYS,
     OFFIC, CHI, STAR, OFFICS, UNOFFICS,
 )
-from .api_toolkit import rearrange_params, add_api_name
+from .api_toolkit import rearrange_params, add_api_name, rearrange_args
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
@@ -166,7 +166,8 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         self._return_unit = return_unit
         self._gets_handler = data_handler
-        self._collect_mode = False
+        self._requests = []
+        self._mode = "u"
 
         self._saves = {}
         self._min_update_time = min_update_time
@@ -174,7 +175,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
     async def close(self) -> None:
         """Close session"""
-        self.session.close()
+        await self.session.close()
 
     @property
     def closed(self) -> bool:
@@ -184,14 +185,19 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return self.session.closed
 
     async def _gets(self, *args: Any, **kwargs: Any) -> JSONSEQ:
-        if self._collect_mode:
-            self._requests.append((*args, *kwargs.values()))
+        if self._mode == "c":
+            self._requests.extend(
+                rearrange_args(
+                    *args, *kwargs.values()))
             return None
 
-        if self._release_mode:
+        if self._mode == "r":
             resps = await self.session._retrying_get(self._requests)
-        else:
+            self._requests.clear()
+        elif self._mode == "u":
             resps = await self.session.gets(*args, **kwargs)
+        else:
+            raise ValueError("_mode is invalid")
         return self._gets_handler(self, resps)
 
     def _get_api(self):
@@ -222,15 +228,20 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         urls = [api.get(*a, **kw) for a, kw in pars]
 
-        return await self._gets(urls, headers=api.headers, from_json=from_json)
+        headers = self.session.headers_handler(api.headers)
+
+        return await self._gets(urls, from_json=from_json, headers=headers)
 
     def collect(self):
-        self._collect_mode = True
+        self._mode = "c"
 
     async def release(self):
-        self._collect_mode = False
+        self._mode = "r"
 
-        return 5
+        res = await self._gets()
+
+        self._mode = "u"
+        return res
 
     @add_api_name(None)
     async def test_fetch(self, *args, **kwargs):
