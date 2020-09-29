@@ -134,6 +134,11 @@ def _rankings(self, kind: str,
                            "kind": kind, "id": key, "limit": limit}
 
 
+COLLECT = "collect"
+RELEASE = "release"
+DEFAULT = "default"
+
+
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
             self, tokens: Union[str, STRDICT],
@@ -167,7 +172,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         self._return_unit = return_unit
         self._gets_handler = data_handler
         self._requests = []
-        self._mode = "u"
+        self._mode = DEFAULT
 
         self._saves = {}
         self._min_update_time = min_update_time
@@ -184,18 +189,22 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         """
         return self.session.closed
 
+    @property
+    def mode(self) -> str:
+        return self._mode
+
     async def _gets(self, *args) -> JSONSEQ:
-        if self._mode == "c":
+        if self.mode == COLLECT:
             self._requests.extend(_rearrange_args(args))
             return None
 
-        if self._mode == "r":
+        if self.mode == RELEASE:
             resps = await self.session._retrying_get(self._requests)
             self._requests.clear()
-        elif self._mode == "u":
+        elif self.mode == DEFAULT:
             resps = await self.session.gets(*args)
         else:
-            raise ValueError("_mode is invalid")
+            raise ValueError("mode is invalid")
 
         return self._gets_handler(self, resps)
 
@@ -205,33 +214,27 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         return self.api_s[self._current_api]
 
-    async def _fetchs(self, paths: STRS = "", from_json: BOOLS = True,
-                      rearrange: AKW = [], **kwargs: Any) -> JSONS:
+    async def _fetchs(self, paths: STRS, from_json: BOOLS = True,
+                      **kwargs) -> JSONS:
 
         api = self._get_api()
 
-        if rearrange:
-            pars = rearrange
-        else:
-            if paths == "":
-                raise ValueError("'paths' must be entered")
-            pars = rearrange_params(paths, **kwargs)
-
+        pars = rearrange_params(paths, **kwargs)
         urls = [api.get(*a, **kw) for a, kw in pars]
 
         headers = self.session.headers_handler(api.headers)
-
         return await self._gets(urls, from_json, headers)
 
     def collect(self):
-        self._mode = "c"
+        self._mode = COLLECT
 
     async def release(self):
-        self._mode = "r"
+        self._mode = RELEASE
+        try:
+            res = await self._gets()
+        finally:
+            self._mode = DEFAULT
 
-        res = await self._gets()
-
-        self._mode = "u"
         return res
 
     @add_api_name(None)
