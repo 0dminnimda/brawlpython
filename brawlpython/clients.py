@@ -6,7 +6,7 @@ from .api import (
     api_defs, API, KINDS, KIND_VALS, KIND_KEYS,
     OFFIC, CHI, STAR, OFFICS, UNOFFICS,
 )
-from .api_toolkit import rearrange_params, add_api_name, rearrange_args
+from .api_toolkit import rearrange_params, add_api_name, _rearrange_args
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
@@ -184,20 +184,19 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         """
         return self.session.closed
 
-    async def _gets(self, *args: Any, **kwargs: Any) -> JSONSEQ:
+    async def _gets(self, *args) -> JSONSEQ:
         if self._mode == "c":
-            self._requests.extend(
-                rearrange_args(
-                    *args, *kwargs.values()))
+            self._requests.extend(_rearrange_args(args))
             return None
 
         if self._mode == "r":
             resps = await self.session._retrying_get(self._requests)
             self._requests.clear()
         elif self._mode == "u":
-            resps = await self.session.gets(*args, **kwargs)
+            resps = await self.session.gets(*args)
         else:
             raise ValueError("_mode is invalid")
+
         return self._gets_handler(self, resps)
 
     def _get_api(self):
@@ -205,14 +204,6 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             self._current_api = self._default_api
 
         return self.api_s[self._current_api]
-
-    async def _fetch(self, path: str, from_json: bool = True,
-                     **kwargs: Any) -> JSONS:
-
-        api = self._get_api()
-
-        return await self._gets(
-            api.get(path, **kwargs), headers=api.headers, from_json=from_json)
 
     async def _fetchs(self, paths: STRS = "", from_json: BOOLS = True,
                       rearrange: AKW = [], **kwargs: Any) -> JSONS:
@@ -230,7 +221,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         headers = self.session.headers_handler(api.headers)
 
-        return await self._gets(urls, from_json=from_json, headers=headers)
+        return await self._gets(urls, from_json, headers)
 
     def collect(self):
         self._mode = "c"

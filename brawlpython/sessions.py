@@ -206,12 +206,6 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         args = (url, from_json, headers)
 
-        print(self._headers_dumps)
-        print()
-        print(headers)
-        print()
-        print()
-
         headers = self._headers_dumps[headers]
         code, data = await self._current_get(
             url, headers)
