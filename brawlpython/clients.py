@@ -277,7 +277,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
     @add_api_name(OFFIC)
     async def brawlers(self, id: INTSTR = "",
-                       limit: INTSTR = 200) -> JSONS:
+                       limit: Optional[INTSTR] = None) -> JSONS:
         return await self._fetchs("brawlers", id=id, limit=limit)
 
     @add_api_name(OFFIC)
@@ -312,10 +312,11 @@ class AsyncClient(AsyncInitObject, AsyncWith):
     @add_api_name(OFFIC)
     async def update_saves(self, now: bool = False) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
-            self._saves.update({
-                "b": await self.brawlers(api=self._current_api),
-                "ps": await self.powerplay(api=self._current_api)
-            })
+            self.collect()
+            await self.brawlers(api=self._current_api)
+            await self.powerplay(api=self._current_api)
+            b, ps = await self.release()
+            self._saves.update({"b": b, "ps": ps})
             self._last_update = time.time()
 
     find_save = _find_save

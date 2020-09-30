@@ -71,11 +71,16 @@ class API:
         return get
 
     def make_url(self, name: str, **params) -> str:
+        url = self.get(name)
+
         tag = params.get("tag")
         if tag is not None:
             params["tag"] = self.remake_tag(tag)
 
-        return default_format(self.get(name), **params)
+        if params.get("limit") is not None:
+            url += "?limit={limit}"
+
+        return default_format(url, **params)
 
     def remake_tag(self, tag: str) -> str:
         tag = tag.strip("#")
@@ -88,15 +93,13 @@ class API:
 
 # before and after - is so impractical that I suppose nobody will use this
 # that's why I decided not to include it here
-limit_str = "?limit={limit}"
 official = {
     "players": "players/{tag}",
     "battlelog": "players/{tag}/battlelog",
     "clubs": "clubs/{tag}",
-    "members": "clubs/{tag}/members" + limit_str,
-    "rankings": "rankings/{code}/{kind}/{id}" + limit_str,
-    "brawlers": "brawlers/{id}" + limit_str}
-
+    "members": "clubs/{tag}/members",
+    "rankings": "rankings/{code}/{kind}/{id}",
+    "brawlers": "brawlers/{id}"}
 
 starlist = {
     "events": "events",
@@ -112,6 +115,7 @@ KINDS = {
     "c": "clubs",
     "p": "players",
     "ps": "powerplay/seasons"}
+
 KIND_VALS = list(KINDS.values())
 KIND_KEYS = list(KINDS.keys())
 
