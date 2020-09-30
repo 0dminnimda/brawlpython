@@ -11,7 +11,7 @@ from requests import Session
 
 from .api_toolkit import (
     default_headers,
-    isrequiredtype,
+    isrequiredcollection,
     multiparams,
     rearrange_params,
     rearrange_args,
@@ -88,7 +88,7 @@ not_scheduled = RuntimeError(
 
 def _headers_handler(self, headers: JSONS) -> STRBYTE:
     # TODO: use self._headers_dumps to not dumps twice
-    if isrequiredtype(headers):
+    if isrequiredcollection(headers):
         res = []
         for hdrs in headers:
             dumps = json.dumps(hdrs)
@@ -207,8 +207,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         args = (url, from_json, headers)
 
         headers = self._headers_dumps[headers]
-        code, data = await self._current_get(
-            url, headers)
+        code, data = await self._current_get(url, headers)
 
         data = loads_json(data, from_json)
 
@@ -227,37 +226,36 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         tasks = [ensure(self._verified_json_get(*a)) for a in params]
         await gather(*tasks)
 
-    async def _retrying_get(self, in_params: Tuple[ARGS]):
-        in_params = tuple(in_params)
+    async def _retrying_get(self, in_params: Iterable[ARGS]):
         self._init_pars.clear()
         self._retry.clear()
-        for i in self._attempts:
-            self._i = i
-            if i == self._attempts.start:
-                self._retry.extend(in_params)
-                for a in self._retry:
-                    self._init_pars[a].append(None)
 
+        in_params = tuple(in_params)
+
+        self._retry.extend(in_params)
+        for a in self._retry:
+            self._init_pars[a].append(None)
+
+        for self._i in self._attempts:
             params = self._retry.copy()
-
             self._retry.clear()
             await self._params_get(params)
 
             if len(self._retry) == 0:
                 res = [self._init_pars[key].pop(0) for key in in_params]
 
-                if not self._debug:
-                    self._init_pars.clear()
+                for value in self._init_pars.values():
+                    if len(value) != 0:
+                        raise RuntimeError(
+                            "not all parameters were used for the answer")
+                self._init_pars.clear()
+
                 return res
 
-        if not self._debug:
-            self._init_pars.clear()
-            self._retry.clear()
-        raise retry_end
+        self._init_pars.clear()
+        self._retry.clear()
 
-    async def get(self, url: str, from_json: bool = True,
-                  headers: JSONTYPE = {}) -> JSONTYPE:
-        return (await self.gets(url, from_json=from_json, headers=headers))[0]
+        raise retry_end
 
     # async def get_params(self, params: Iterable[ARGS]) -> JSONSEQ:
     #     return await self._retrying_get(params)

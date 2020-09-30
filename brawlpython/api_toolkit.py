@@ -18,7 +18,7 @@ __all__ = (
     "isunit",
     "isempty",
     "ismapping",
-    "isrequiredtype",
+    "isrequiredcollection",
     "same",
     "unique",
     "prepare_param",
@@ -70,7 +70,7 @@ def ismapping(obj):
     return isinstance(obj, Mapping)
 
 
-def isrequiredtype(obj):
+def isrequiredcollection(obj):
     return (
         iscollection(obj)
         and not isliterals(obj)
@@ -88,7 +88,7 @@ def unique(x):
 
 
 def prepare_param(param, lengths):
-    if isrequiredtype(param):
+    if isrequiredcollection(param):
         if isunit(param):
             return ("u", param[0])
         else:
