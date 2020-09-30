@@ -137,7 +137,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         else:
             # self._cache = None
             self._current_get = self._basic_get
-        self._use_cache = use_cache
+        self._cached = use_cache
 
         if repeat_failed < 0:
             repeat_failed = 0
@@ -171,8 +171,8 @@ class AsyncSession(AsyncInitObject, AsyncWith):
     headers_handler = _headers_handler
 
     @property
-    def can_use_cache(self) -> bool:
-        return self._use_cache
+    def cached(self) -> bool:
+        return self._cached
 
     async def _basic_get(self, url: str,
                          headers: JSONTYPE) -> Tuple[int, str]:
@@ -286,7 +286,7 @@ class SyncSession(SyncWith):
             self._cache = TTLCache(maxsize=cache_limit, ttl=cache_ttl)
         else:
             self._cache = None
-        self._use_cache = use_cache
+        self._cached = use_cache
 
         self.timeout = timeout
 
@@ -314,8 +314,8 @@ class SyncSession(SyncWith):
     raise_for_status = _raise_for_status
 
     @property
-    def can_use_cache(self) -> bool:
-        return self._use_cache
+    def cached(self) -> bool:
+        return self._cached
 
     def _simple_get(
             self, url: str, from_json: bool = True,

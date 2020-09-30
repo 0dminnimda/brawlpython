@@ -130,8 +130,8 @@ def _rankings(self, kind: str,
     if key is None:
         key = ""
 
-    return ("rankings",), {"code": code,
-                           "kind": kind, "id": key, "limit": limit}
+    return ("rankings",), {"code": code, "kind": kind,
+                           "id": key, "limit": limit}
 
 
 COLLECT = "collect"
