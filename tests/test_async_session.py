@@ -12,9 +12,9 @@ url_uuid = "http://httpbin.org/uuid"
 
 
 # @pytest.yield_fixture
-# def token():
+# def api_key():
 config = ConfigObj("config.ini")
-token = config["DEFAULT"].get("API_KEY")
+api_key = config["DEFAULT"].get("API_KEY")
 
 
 @pytest.fixture
@@ -34,11 +34,11 @@ def factory(loop):
 
 @pytest.fixture
 def client(factory, loop):
-    return loop.run_until_complete(factory(token, cache_ttl=1))
+    return loop.run_until_complete(factory(api_key, cache_ttl=1))
 
 
 async def test_async_init():
-    client = AsyncSession(token)
+    client = AsyncSession(api_key)
 
     assert iscoro(client)
 
@@ -64,7 +64,7 @@ async def test_cache(client):
 
 
 async def test_no_cache(factory):
-    client = await factory(token, use_cache=False)
+    client = await factory(api_key, use_cache=False)
 
     assert unique([await client.get(url_uuid) for _ in range(2)])
 

@@ -3,7 +3,7 @@
 import asyncio
 
 from .api import (
-    api_defs, API, KINDS, KIND_VALS, KIND_KEYS,
+    default_api_dict, API, KINDS, KIND_VALS, KIND_KEYS,
     OFFIC, CHI, STAR, OFFICS, UNOFFICS,
 )
 from .api_toolkit import rearrange_params, add_api_name, _rearrange_args
@@ -11,7 +11,7 @@ from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
 
-from configobj import ConfigObj
+from configparser import ConfigParser
 from functools import update_wrapper
 from types import TracebackType
 from typing import (
@@ -42,6 +42,11 @@ __all__ = (
     "offic_gets_handler",
     "star_gets_handler",
     "gets_handler")
+
+
+COLLECT = "collect"
+RELEASE = "release"
+DEFAULT = "default"
 
 
 def offic_gets_handler(data_list: JSONSEQ) -> JSONSEQ:
@@ -135,22 +140,25 @@ def _rankings(self, kind: str,
                            "id": key, "limit": limit}
 
 
-COLLECT = "collect"
-RELEASE = "release"
-DEFAULT = "default"
+def get_and_apply_api_keys(filename: str, api_dict: Dict[str, API]) -> None:
+    if filename.endswith(".env"):
+        raise ValueError("this file extension is not accepted")
 
-INI = ".ini"
-ENV = ".env"
+    # if filename.endswith(".ini"):
+    config = ConfigParser()
+    config.read(filename)
+    for name, api in api_dict.items():
+        if name in OFFICS:
+            name = OFFIC
 
-
-def get_keys(file: str):
-    if file.endswith(".ini")
+        api_key = config.get("DEFAULT", name + "_api_key")
+        api.set_api_key(api_key)
 
 
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
-            self, tokens: Union[str, STRDICT],
-            api_s: Dict[str, API] = {},
+            self, api_keys: Union[str, STRDICT],
+            api_dict: Dict[str, API] = {},
             default_api: str = OFFIC,
             return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
@@ -167,19 +175,16 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         self.session = await AsyncSession(
             trust_env=trust_env, cache_ttl=cache_ttl,
             cache_limit=cache_limit, use_cache=use_cache,
-            timeout=timeout, repeat_failed=repeat_failed
-        )
-        
-        keys_file
-        
-        self.api_s = {**api_defs, **api_s}
+            timeout=timeout, repeat_failed=repeat_failed)
+
+        self.api_dict = {**default_api_dict, **api_dict}
         self._current_api = self._default_api = default_api
 
-        if isinstance(tokens, str):
-            self.api_s[default_api].set_token(tokens)
+        if isinstance(api_keys, str):
+            self.api_dict[default_api].set_api_key(api_keys)
         else:
-            for name, token in tokens.items():
-                self.api_s[name].set_token(token)
+            for name, api_key in api_keys.items():
+                self.api_dict[name].set_api_key(api_key)
 
         self._return_unit = return_unit
         self._gets_handler = data_handler
@@ -224,7 +229,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         if self._current_api is None:
             self._current_api = self._default_api
 
-        return self.api_s[self._current_api]
+        return self.api_dict[self._current_api]
 
     async def _fetchs(self, paths: STRS, from_json: BOOLS = True,
                       **kwargs) -> JSONS:
@@ -336,8 +341,8 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
 class SyncClient(SyncWith):
     def __init__(
-            self, tokens: Union[str, STRDICT],
-            api_s: Dict[str, API] = {},
+            self, api_keys: Union[str, STRDICT],
+            api_dict: Dict[str, API] = {},
             default_api: str = OFFIC,
             return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
@@ -355,14 +360,14 @@ class SyncClient(SyncWith):
             cache_limit=cache_limit, use_cache=use_cache,
             timeout=timeout, repeat_failed=repeat_failed
         )
-        self.api_s = {**api_defs, **api_s}
+        self.api_dict = {**default_api_dict, **api_dict}
         self._current_api = self._default_api = default_api
 
-        if isinstance(tokens, str):
-            self.api_s[default_api].set_token(tokens)
+        if isinstance(api_keys, str):
+            self.api_dict[default_api].set_api_key(api_keys)
         else:
-            for name, token in tokens.items():
-                self.api_s[name].set_token(token)
+            for name, api_key in api_keys.items():
+                self.api_dict[name].set_api_key(api_key)
 
         self._return_unit = return_unit
         self._gets_handler = data_handler
@@ -390,7 +395,7 @@ class SyncClient(SyncWith):
         if self._current_api is None:
             self._current_api = self._default_api
 
-        return self.api_s[self._current_api]
+        return self.api_dict[self._current_api]
 
     def _fetch(self, path: str, from_json: bool = True,
                **kwargs: Any) -> JSONS:

@@ -65,7 +65,7 @@ class BadRequest(ClientResponseError):
 
 class Forbidden(ClientResponseError):
     """Access denied, either because of missing/incorrect credentials or
-    used API token does not grant access to the requested resource.
+    used API key/token does not grant access to the requested resource.
     """
 
     code = 403
@@ -79,7 +79,7 @@ class NotFound(ClientResponseError):
 
 class TooManyRequests(ClientResponseError):
     """Request was throttled, because amount of requests
-    was above the threshold defined for the used API token.
+    was above the threshold defined for the used API key/token.
     """
 
     code = 429

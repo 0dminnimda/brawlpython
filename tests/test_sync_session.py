@@ -10,7 +10,7 @@ import time
 url_uuid = "http://httpbin.org/uuid"
 
 config = ConfigObj("config.ini")
-token = config["DEFAULT"].get("API_KEY")
+api_key = config["DEFAULT"].get("API_KEY")
 
 
 @pytest.yield_fixture
@@ -30,11 +30,11 @@ def factory():
 
 @pytest.yield_fixture
 def client(factory):
-    return factory(token, cache_ttl=1)
+    return factory(api_key, cache_ttl=1)
 
 
 def test_sync_init():
-    client = SyncSession(token)
+    client = SyncSession(api_key)
 
     assert isinstance(client, SyncSession)
 
@@ -58,7 +58,7 @@ def test_cache(client):
 
 
 def test_no_cache(factory):
-    client = factory(token, use_cache=False)
+    client = factory(api_key, use_cache=False)
 
     assert unique([client.get(url_uuid) for _ in range(2)])
 

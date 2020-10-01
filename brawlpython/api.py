@@ -9,7 +9,7 @@ import urllib.parse as parse
 
 __all__ = (
     "API",
-    "api_defs",
+    "default_api_dict",
     "KINDS",
     "KIND_VALS",
     "KIND_KEYS",
@@ -42,6 +42,7 @@ class API:
             base += "/"
 
         self.base = base
+        self.headers = {}
         self.endpoints = {}
         self.append(endpoints)
         self.hashtag = hashtag
@@ -54,11 +55,9 @@ class API:
 
         self.endpoints.update(endpoints)
 
-    def set_token(self, token: str) -> None:
-        if token is None:
-            self.headers = {}
-        else:
-            self.headers = make_headers(token)
+    def set_api_key(self, api_key: str) -> None:
+        if api_key is not None:
+            self.headers = make_headers(api_key)
 
     def get(self, name: str) -> str:
         if name == "base":
@@ -125,7 +124,7 @@ STAR = "starlist"
 OFFICS = (OFFIC, CHI)
 UNOFFICS = (STAR,)
 
-api_defs = {
+default_api_dict = {
     OFFIC: API("api.brawlstars.com/v1", official),
     CHI: API("api.brawlstars.cn/v1", official),
     STAR: API("api.starlist.pro", starlist, hashtag=False),

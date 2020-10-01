@@ -11,7 +11,7 @@ import pytest
 url_uuid = "http://httpbin.org/uuid"
 
 config = ConfigObj("config.ini")
-token = config["DEFAULT"].get("API_KEY")
+api_key = config["DEFAULT"].get("API_KEY")
 
 
 @pytest.fixture
@@ -31,11 +31,11 @@ def factory(loop):
 
 @pytest.fixture
 def client(factory, loop):
-    return loop.run_until_complete(factory(token))
+    return loop.run_until_complete(factory(api_key))
 
 
 async def test_async_init():
-    client = AsyncClient(token)
+    client = AsyncClient(api_key)
 
     assert iscoro(client)
 
@@ -61,7 +61,7 @@ async def no_test_cache(client):
 
 
 async def no_test_no_cache(factory):
-    client = await factory(token, use_cache=False)
+    client = await factory(api_key, use_cache=False)
 
     assert unique([await client._get(url_uuid) for _ in range(2)])
 
@@ -70,7 +70,7 @@ async def no_test_no_cache(factory):
 
 # FIXME: complete test
 async def test_data_handler(factory):
-    client = await factory(token, data_handler=lambda *x: None)
+    client = await factory(api_key, data_handler=lambda *x: None)
 
     await client._get(url_uuid)
 

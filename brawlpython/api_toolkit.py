@@ -42,8 +42,8 @@ def default_headers() -> STRDICT:
     }
 
 
-def make_headers(token: str) -> STRDICT:
-    return {"authorization": f"Bearer {token}"}
+def make_headers(api_key: str) -> STRDICT:
+    return {"authorization": f"Bearer {api_key}"}
 
 
 def isliterals(obj):
