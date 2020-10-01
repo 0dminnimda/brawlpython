@@ -11,6 +11,7 @@ from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
 
+from configobj import ConfigObj
 from functools import update_wrapper
 from types import TracebackType
 from typing import (
@@ -138,6 +139,13 @@ COLLECT = "collect"
 RELEASE = "release"
 DEFAULT = "default"
 
+INI = ".ini"
+ENV = ".env"
+
+
+def get_keys(file: str):
+    if file.endswith(".ini")
+
 
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
@@ -147,6 +155,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
             data_handler: HANDLER = gets_handler,
+            keys_file: Optional[str] = None,
 
             trust_env: bool = True,
             cache_ttl: NUMBER = 60,
@@ -160,6 +169,9 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             cache_limit=cache_limit, use_cache=use_cache,
             timeout=timeout, repeat_failed=repeat_failed
         )
+        
+        keys_file
+        
         self.api_s = {**api_defs, **api_s}
         self._current_api = self._default_api = default_api
 
