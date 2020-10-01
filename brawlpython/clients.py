@@ -157,13 +157,13 @@ def get_and_apply_api_keys(filename: str, api_dict: Dict[str, API]) -> None:
 
 class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
-            self, api_keys: Union[str, STRDICT],
+            self,  # api_keys: Union[str, STRDICT],
+            config_file_name: str = "config.ini",
             api_dict: Dict[str, API] = {},
             default_api: str = OFFIC,
             return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
             data_handler: HANDLER = gets_handler,
-            keys_file: Optional[str] = None,
 
             trust_env: bool = True,
             cache_ttl: NUMBER = 60,
@@ -178,13 +178,14 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             timeout=timeout, repeat_failed=repeat_failed)
 
         self.api_dict = {**default_api_dict, **api_dict}
+        get_and_apply_api_keys(config_file_name, self.api_dict)
         self._current_api = self._default_api = default_api
 
-        if isinstance(api_keys, str):
-            self.api_dict[default_api].set_api_key(api_keys)
-        else:
-            for name, api_key in api_keys.items():
-                self.api_dict[name].set_api_key(api_key)
+        # if isinstance(api_keys, str):
+        #     self.api_dict[default_api].set_api_key(api_keys)
+        # else:
+        #     for name, api_key in api_keys.items():
+        #         self.api_dict[name].set_api_key(api_key)
 
         self._return_unit = return_unit
         self._gets_handler = data_handler
