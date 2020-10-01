@@ -1,2 +1,3 @@
 [DEFAULT]
-API_KEY = <YOUR_API_KEY>
+official_api_key = <API_KEY>
+starlist_api_key = <API_KEY>
