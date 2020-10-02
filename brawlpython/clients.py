@@ -279,10 +279,6 @@ class AsyncClient(AsyncInitObject, AsyncWith):
     async def members(self, tag: str, limit: INTSTR = 100) -> JSONS:
         return await self._fetchs("members", tag=tag, limit=limit)
 
-    async def _one_rankings(self, *args, **kwargs):
-        a, kw = _rankings(self, *args, **kwargs)
-        return await self._fetchs(*a, **kw)
-
     @add_api_name(OFFIC)
     async def rankings(self, kind: str,
                        key: Optional[INTSTR] = None,
@@ -292,8 +288,9 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         pars = rearrange_params(kind, key=key, code=code, limit=limit)
 
         self.collect()
-        for a, kw in pars:
-            await self._one_rankings(*a, **kw)
+        for args, kwargs in pars:
+            a, kw = _rankings(self, *args, **kwargs)
+            await self._fetchs(*a, **kw)
 
         return await self.release()
 
