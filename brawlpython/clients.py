@@ -140,18 +140,21 @@ def _rankings(self, kind: str,
                            "id": key, "limit": limit}
 
 
-def get_and_apply_api_keys(filename: str, api_dict: Dict[str, API]) -> None:
+def get_and_apply_api_keys(filename: str, section: str,
+                           api_dict: Dict[str, API]) -> None:
     if filename.endswith(".env"):
         raise ValueError("this file extension is not accepted")
 
     # if filename.endswith(".ini"):
     config = ConfigParser()
     config.read(filename)
+    config = config[section]
+
     for name, api in api_dict.items():
         if name in OFFICS:
             name = OFFIC
 
-        api_key = config.get("DEFAULT", name + "_api_key")
+        api_key = config.get(name + "_api_key")
         api.set_api_key(api_key)
 
 
@@ -159,6 +162,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
     async def __init__(
             self,  # api_keys: Union[str, STRDICT],
             config_file_name: str = "config.ini",
+            section: str = "DEFAULT",
             api_dict: Dict[str, API] = {},
             default_api: str = OFFIC,
             return_unit: bool = True,
@@ -178,7 +182,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
             timeout=timeout, repeat_failed=repeat_failed)
 
         self.api_dict = {**default_api_dict, **api_dict}
-        get_and_apply_api_keys(config_file_name, self.api_dict)
+        get_and_apply_api_keys(config_file_name, section, self.api_dict)
         self._current_api = self._default_api = default_api
 
         # if isinstance(api_keys, str):
