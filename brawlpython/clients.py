@@ -6,7 +6,7 @@ from .api import (
     default_api_dict, API, KINDS, KIND_VALS, KIND_KEYS,
     OFFIC, CHI, STAR, OFFICS, UNOFFICS,
 )
-from .api_toolkit import rearrange_params, add_api_name, _rearrange_args
+from .api_toolkit import rearrange_params, _rearrange_args
 from .base_classes import AsyncInitObject, AsyncWith, SyncWith
 from .cache_utils import iscorofunc
 from .sessions import AsyncSession, SyncSession
@@ -230,21 +230,29 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         return self._gets_handler(self, resps)
 
-    def _get_api(self):
-        if self._current_api is None:
-            self._current_api = self._default_api
+    def _get_api(self, api: str):
+        return self.api_dict[api]
 
-        return self.api_dict[self._current_api]
+    async def _fetchs(self, paths: STRS, api: str, from_json: BOOLS = True,
+                      rearrange: bool = True, **kwargs) -> JSONS:
 
-    async def _fetchs(self, paths: STRS, from_json: BOOLS = True,
-                      **kwargs) -> JSONS:
+        if rearrange:
+            urls = []
+            headers = []
+            pars = rearrange_params(api, paths, **kwargs)
 
-        api = self._get_api()
+            for (api, *a), kw in pars:
+                api = self._get_api(api)
 
-        pars = rearrange_params(paths, **kwargs)
-        urls = [api.make_url(*a, **kw) for a, kw in pars]
+                urls.append(api.make_url(*a, **kw))
+                headers.append(
+                    self.session.headers_handler(api.headers))
+        else:
+            api = self._get_api(api)
 
-        headers = self.session.headers_handler(api.headers)
+            urls = api.make_url(paths, **kwargs)
+            headers = self.session.headers_handler(api.headers)
+
         return await self._gets(urls, from_json, headers)
 
     def collect(self):
@@ -259,81 +267,70 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
         return res
 
-    @add_api_name(None)
+    # @add_api_name(None)
     async def test_fetch(self, *args, **kwargs):
         return await self._fetchs(*args, **kwargs)
 
-    @add_api_name(OFFIC)
-    async def players(self, tag: str) -> JSONS:
-        return await self._fetchs("players", tag=tag)
+    async def players(self, tag: str, api: str = OFFIC) -> JSONS:
+        return await self._fetchs("players", api, tag=tag)
 
-    @add_api_name(OFFIC)
-    async def battlelog(self, tag: str) -> JSONS:
-        return await self._fetchs("battlelog", tag=tag)
+    async def battlelog(self, tag: str, api: str = OFFIC) -> JSONS:
+        return await self._fetchs("battlelog", api, tag=tag)
 
-    @add_api_name(OFFIC)
-    async def clubs(self, tag: str) -> JSONS:
-        return await self._fetchs("clubs", tag=tag)
+    async def clubs(self, tag: str, api: str = OFFIC) -> JSONS:
+        return await self._fetchs("clubs", api, tag=tag)
 
-    @add_api_name(OFFIC)
-    async def members(self, tag: str, limit: INTSTR = 100) -> JSONS:
-        return await self._fetchs("members", tag=tag, limit=limit)
+    async def members(self, tag: str, limit: INTSTR = 100,
+                      api: str = OFFIC) -> JSONS:
+        return await self._fetchs("members", api, tag=tag, limit=limit)
 
-    @add_api_name(OFFIC)
     async def rankings(self, kind: str,
                        key: Optional[INTSTR] = None,
                        code: str = "global",
-                       limit: INTSTR = 200) -> JSONS:
+                       limit: INTSTR = 200,
+                       api: str = OFFIC) -> JSONS:
 
-        pars = rearrange_params(kind, key=key, code=code, limit=limit)
+        pars = rearrange_params(kind, api, key=key, code=code, limit=limit)
 
         self.collect()
         for args, kwargs in pars:
             a, kw = _rankings(self, *args, **kwargs)
-            await self._fetchs(*a, **kw)
+            await self._fetchs(*a, rearrange=False, **kw)
 
         return await self.release()
 
-    @add_api_name(OFFIC)
-    async def brawlers(self, id: INTSTR = "",
-                       limit: Optional[INTSTR] = None) -> JSONS:
-        return await self._fetchs("brawlers", id=id, limit=limit)
+    async def brawlers(self, id: INTSTR = "", limit: Optional[INTSTR] = None,
+                       api: str = OFFIC) -> JSONS:
+        return await self._fetchs("brawlers", api, id=id, limit=limit)
 
-    @add_api_name(OFFIC)
-    async def powerplay(self, code: str = "global", limit: int = 200) -> JSONS:
-        return await self._fetchs("rankings", code=code, limit=limit,
+    async def powerplay(self, code: str = "global", limit: int = 200,
+                        api: str = OFFIC) -> JSONS:
+        return await self._fetchs("rankings", api, code=code, limit=limit,
                                   kind=KINDS["ps"])
 
-    @add_api_name(STAR)
-    async def events(self) -> JSONS:
-        return await self._fetchs("events")
+    async def events(self, api: str = STAR) -> JSONS:
+        return await self._fetchs("events", api)
 
-    @add_api_name(STAR)
-    async def icons(self) -> JSONS:
-        return await self._fetchs("icons")
+    async def icons(self, api: str = STAR) -> JSONS:
+        return await self._fetchs("icons", api)
 
-    @add_api_name(STAR)
-    async def maps(self, id: INTSTR = "") -> JSONS:
-        return await self._fetchs("maps", id=id)
+    async def maps(self, id: INTSTR = "", api: str = STAR) -> JSONS:
+        return await self._fetchs("maps", api, id=id)
 
-    @add_api_name(STAR)
-    async def gamemodes(self) -> JSONS:
-        return await self._fetchs("gamemodes")
+    async def gamemodes(self, api: str = STAR) -> JSONS:
+        return await self._fetchs("gamemodes", api)
 
-    @add_api_name(STAR)
-    async def clublog(self, tag: str) -> JSONS:
-        return await self._fetchs("clublog", tag=tag)
+    async def clublog(self, tag: str, api: str = STAR) -> JSONS:
+        return await self._fetchs("clublog", api, tag=tag)
 
-    @add_api_name(STAR)
-    async def translations(self, code: str = "") -> JSONS:
-        return await self._fetchs("translations", code=code)
+    async def translations(self, code: str = "", api: str = STAR) -> JSONS:
+        return await self._fetchs("translations", api, code=code)
 
-    @add_api_name(OFFIC)
-    async def update_saves(self, now: bool = False) -> None:
+    async def update_saves(self, now: bool = False, api: str = OFFIC) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
             self.collect()
-            await self.brawlers(api=self._current_api)
-            await self.powerplay(api=self._current_api)
+            await self.brawlers(api=api)
+            await self.powerplay(api=api)
             b, ps = await self.release()
             self._saves.update({"b": b, "ps": ps})
             self._last_update = time.time()
@@ -420,27 +417,27 @@ class SyncClient(SyncWith):
 
         return self._gets(urls, headers=api.headers, from_json=from_json)
 
-    @add_api_name(None)
+    # @add_api_name(None)
     def test_fetch(self, *args, **kwargs):
         return self._fetchs(*args, **kwargs)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def players(self, tag: str) -> JSONS:
         return self._fetchs("players", tag=tag)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def battlelog(self, tag: str) -> JSONS:
         return self._fetchs("battlelog", tag=tag)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def clubs(self, tag: str) -> JSONS:
         return self._fetchs("clubs", tag=tag)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def members(self, tag: str, limit: INTSTR = 100) -> JSONS:
         return self._fetchs("members", tag=tag, limit=limit)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def rankings(self, kind: str,
                  key: Optional[INTSTR] = None,
                  code: str = "global",
@@ -451,41 +448,41 @@ class SyncClient(SyncWith):
         return self._fetchs(
             [_rankings(self, *a, **kw) for a, kw in pars], rearrange=False)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def brawlers(self, id: INTSTR = "",
                  limit: INTSTR = "") -> JSONS:
         return self._fetchs("brawlers", id=id, limit=limit)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def powerplay(self, code: str = "global", limit: int = 200) -> JSONS:
         return self._fetchs("rankings", code=code, limit=limit,
                             kind=KINDS["ps"], id="")
 
-    @add_api_name(STAR)
+    # @add_api_name(STAR)
     def events(self) -> JSONS:
         return self._fetchs("events")
 
-    @add_api_name(STAR)
+    # @add_api_name(STAR)
     def icons(self) -> JSONS:
         return self._fetchs("icons")
 
-    @add_api_name(STAR)
+    # @add_api_name(STAR)
     async def maps(self, id: INTSTR = "") -> JSONS:
         return self._fetchs("maps", id=id)
 
-    @add_api_name(STAR)
+    # @add_api_name(STAR)
     def gamemodes(self) -> JSONS:
         return self._fetchs("gamemodes")
 
-    @add_api_name(STAR)
+    # @add_api_name(STAR)
     def clublog(self, tag: str) -> JSONS:
         return self._fetchs("clublog", tag=tag)
 
-    @add_api_name(STAR)
+    # @add_api_name(STAR)
     def translations(self, code: str = "") -> JSONS:
         return self._fetchs("translations", code=code)
 
-    @add_api_name(OFFIC)
+    # @add_api_name(OFFIC)
     def update_saves(self, now: bool = False) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
             self._saves.update({

@@ -161,18 +161,3 @@ def multiparams(func):
             params = _rearrange_params(args, kwargs)
             return [func(*a, **kw) for a, kw in params]
     return update_wrapper(wrapper, func)
-
-
-def add_api_name(default_api):
-    def decorator(func):
-        if iscorofunc(func):
-            async def wrapper(self, *args, api: str = default_api, **kwargs):
-                self._current_api = api
-                return await func(self, *args, **kwargs)
-        else:
-            def wrapper(self, *args, api: str = default_api, **kwargs):
-                self._current_api = api
-                return func(self, *args, **kwargs)
-
-        return update_wrapper(wrapper, func)
-    return decorator
