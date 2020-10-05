@@ -105,8 +105,11 @@ class DefaultOrderedDict(OrderedDict):
         for k in vars(DefaultOrderedDict()):
             inst_dict.pop(k, None)
 
-        inst_dict = inst_dict or None
-        return self.__class__, args, inst_dict, None, iter(self.items())
+        return self.__class__, args, inst_dict or None, None, \
+            iter(self.items())
+
+    def __copy__(self):
+        return self.__class__(self.default_factory, self)
 
     def copy(self):
-        return self.__class__(self.default_factory, self)
+        return self.__copy__()
