@@ -10,7 +10,7 @@ import sys
 from typing import Dict, Union
 
 __all__ = (
-    "default_headers",
+    "DEFAULT_HEADERS",
     "make_headers",
     "isliterals",
     "iscollection",
@@ -31,15 +31,14 @@ __all__ = (
     "add_api_name")
 
 
-def default_headers() -> STRDICT:
-    return {
-        "dnt": "1",
-        "user-agent": f"{__name__}/{__version__} (Python {sys.version[:5]})",
-        "accept-encoding": ", ".join(("gzip", "deflate")),
-        "cache-control": "no-cache",
-        "pragma": "no-cache",
-        # "content-encoding": "utf-8",
-    }
+DEFAULT_HEADERS = {
+    "dnt": "1",
+    "user-agent": f"{__name__}/{__version__} (Python {sys.version[:5]})",
+    "accept-encoding": ", ".join(("gzip", "deflate")),
+    "cache-control": "no-cache",
+    "content-type": "application/json",
+    # "content-encoding": "utf-8"
+    "pragma": "no-cache"}
 
 
 def make_headers(api_key: str) -> STRDICT:
