@@ -3,13 +3,14 @@
 from collections import OrderedDict, defaultdict
 from reprlib import recursive_repr
 from types import TracebackType
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Optional, Type, TypeVar, Collection
 
 __all__ = (
     "AsyncInitObject",
     "AsyncWith",
     "SyncWith",
-    "DefaultOrderedDict")
+    "DefaultOrderedDict",
+    "Mode")
 
 
 # SEE: https://stackoverflow.com/questions/33128325#45364670
@@ -113,3 +114,22 @@ class DefaultOrderedDict(OrderedDict):
 
     def copy(self):
         return self.__copy__()
+
+
+class Mode:
+    __slots__ = "modes", "mode"
+
+    def __init__(self, modes: Collection[str]) -> None:
+        self.modes = modes
+        self.mode, *_ = modes
+
+    def __get__(self, obj, type=None) -> str:
+        if obj is None:
+            return self
+        return self.mode
+
+    def __set__(self, obj, value) -> None:
+        if value in self.modes:
+            self.mode = value
+        else:
+            raise ValueError(f"mode must be one of {self.modes}")

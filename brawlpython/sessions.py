@@ -17,7 +17,7 @@ from .api_toolkit import (
     rearrange_args,
     isliterals)
 from .base_classes import (AsyncInitObject, AsyncWith,
-                           SyncWith, DefaultOrderedDict)
+                           SyncWith, DefaultOrderedDict, Mode)
 from .cache_utils import somecachedmethod, iscorofunc, NaN
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
@@ -71,7 +71,7 @@ not_scheduled = RuntimeError(
 COLLECT = "collect"
 RELEASE = "release"
 DEFAULT = "default"
-MODES = (COLLECT, RELEASE, DEFAULT)
+MODES = (DEFAULT, COLLECT, RELEASE)
 
 
 def _raise_for_status(self, url: str, code: int,
@@ -153,7 +153,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         self._init_pars = DefaultOrderedDict(list)
 
         self._debug = False
-        self._mode = DEFAULT
+        self.mode = Mode(MODES)
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -171,17 +171,6 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         A readonly property.
         """
         return self.session.closed
-
-    def get_mode(self) -> str:
-        return self._mode
-
-    def set_mode(self, value) -> None:
-        if value in MODES:
-            self._mode = value
-        else:
-            raise ValueError(f"mode must be one of {MODES}")
-
-    mode = property(get_mode, set_mode)
 
     def collect(self):
         self.mode = COLLECT
