@@ -60,6 +60,20 @@ __all__ = (
 # 1024 is a relatively random choice and
 # has nothing to do with the desired behavior
 
+retry_end = RuntimeError(
+    "self._attempts argument was changed"
+    " causing it to work incorrectly")
+
+not_scheduled = RuntimeError(
+    "scheduled function calls with these parameters have"
+    " already been executed, this call is not scheduled")
+
+COLLECT = "collect"
+RELEASE = "release"
+DEFAULT = "default"
+MODES = (COLLECT, RELEASE, DEFAULT)
+
+
 def _raise_for_status(self, url: str, code: int,
                       data: Union[JSONTYPE, str]) -> None:
 
@@ -75,15 +89,6 @@ def _raise_for_status(self, url: str, code: int,
         raise excp(url, reason, message)
     else:
         raise UnexpectedResponseCode(url, code, reason, message)
-
-
-retry_end = RuntimeError(
-    "self._attempts argument was changed"
-    " causing it to work incorrectly")
-
-not_scheduled = RuntimeError(
-    "scheduled function calls with these parameters have"
-    " already been executed, this call is not scheduled")
 
 
 def _headers_handler(self, headers: JSONS) -> STRBYTE:
@@ -148,6 +153,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         self._init_pars = DefaultOrderedDict(list)
 
         self._debug = False
+        self._mode = DEFAULT
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -165,6 +171,29 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         A readonly property.
         """
         return self.session.closed
+
+    def get_mode(self) -> str:
+        return self._mode
+
+    def set_mode(self, value) -> None:
+        if value in MODES:
+            self._mode = value
+        else:
+            raise ValueError(f"mode must be one of {MODES}")
+
+    mode = property(get_mode, set_mode)
+
+    def collect(self):
+        self.mode = COLLECT
+
+    async def release(self):
+        self.mode = RELEASE
+        try:
+            result = await self._mode_dependent_get()
+        finally:
+            self.mode = DEFAULT
+
+        return result
 
     raise_for_status = _raise_for_status
 
@@ -222,17 +251,22 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             else:
                 raise not_scheduled
 
-    async def _params_get(self, params: Tuple[ARGS]):
+    async def _params_get(self, params: Tuple[ARGS]) -> JSONSEQ:
         tasks = [ensure(self._verified_json_get(*a)) for a in params]
         await gather(*tasks)
 
-    async def _retrying_get(self, in_params: Iterable[ARGS]):
-        self._init_pars.clear()
-        self._retry.clear()
+    async def _extend_retry(self, params: Iterable[ARGS]) -> None:
+        self._retry.extend(params)
 
-        in_params = tuple(in_params)
+    async def _retrying_get(
+            self, in_params: Iterable[ARGS] = None) -> List[JSONTYPE]:
 
-        self._retry.extend(in_params)
+        if in_params is None:
+            in_params = tuple(self._retry)
+        else:
+            in_params = tuple(in_params)
+            await self._extend_retry(in_params)
+
         for a in self._retry:
             self._init_pars[a].append(None)
 
@@ -257,6 +291,26 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
         raise retry_end
 
+    async def _mode_dependent_get(
+            self, params: Optional[Iterable[ARGS]] = None
+    ) -> Optional[List[JSONTYPE]]:
+
+        if self.mode == RELEASE:
+            return await self._retrying_get()
+
+        if params is None:
+            raise ValueError("params must not be None if mode is not RELEASE")
+
+        if self.mode == DEFAULT:
+            self._init_pars.clear()
+            self._retry.clear()
+
+            return await self._retrying_get(params)
+
+        if self.mode == COLLECT:
+            await self._extend_retry(params)
+            return None
+
     # async def get_params(self, params: Iterable[ARGS]) -> JSONSEQ:
     #     return await self._retrying_get(params)
 
@@ -266,7 +320,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         params = rearrange_args(
             urls, from_json, self.headers_handler(headers))
 
-        return await self._retrying_get(params)
+        return await self._mode_dependent_get(params)
 
 
 class SyncSession(SyncWith):

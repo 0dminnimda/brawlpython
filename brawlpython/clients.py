@@ -109,7 +109,7 @@ def _find_save(self, kind: str, match: INTSTR,
     return None  # returns explicitly
 
 
-def _rankings(self, kind: str,
+def _rankings(self, kind: str, api: str,
               key: Optional[INTSTR] = None,
               code: str = "global",
               limit: INTSTR = 200) -> JSONS:
@@ -159,6 +159,8 @@ def get_and_apply_api_keys(filename: str, section: str,
 
 
 class AsyncClient(AsyncInitObject, AsyncWith):
+    _gets_handler = gets_handler
+
     async def __init__(
             self,  # api_keys: Union[str, STRDICT],
             config_file_name: str = "config.ini",
@@ -211,24 +213,14 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         """
         return self.session.closed
 
-    @property
-    def mode(self) -> str:
-        return self._mode
-
     async def _gets(self, *args) -> JSONSEQ:
-        if self.mode == COLLECT:
-            self._requests.extend(_rearrange_args(args))
-            return None
+        not_collect = self.session.mode != COLLECT
 
-        if self.mode == RELEASE:
-            resps = await self.session._retrying_get(self._requests)
-            self._requests.clear()
-        elif self.mode == DEFAULT:
-            resps = await self.session.gets(*args)
+        resps = await self.session.gets(*args)
+        if not_collect:
+            return self._gets_handler(resps)
         else:
-            raise ValueError("mode is invalid")
-
-        return self._gets_handler(self, resps)
+            return resps
 
     def _get_api(self, api: str):
         return self.api_dict[api]
@@ -246,7 +238,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
 
                 urls.append(api.make_url(*a, **kw))
                 headers.append(
-                    self.session.headers_handler(api.headers))
+                    (api.headers))  # self.session.headers_handler
         else:
             api = self._get_api(api)
 
@@ -256,16 +248,18 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._gets(urls, from_json, headers)
 
     def collect(self):
-        self._mode = COLLECT
+        # self._mode = COLLECT
+        self.session.collect()
 
     async def release(self):
-        self._mode = RELEASE
-        try:
-            res = await self._gets()
-        finally:
-            self._mode = DEFAULT
+        return self._gets_handler(await self.session.release())
+        # self._mode = RELEASE
+        # try:
+        #     res = await self._gets()
+        # finally:
+        #     self._mode = DEFAULT
 
-        return res
+        # return res
 
     # @add_api_name(None)
     async def test_fetch(self, *args, **kwargs):
