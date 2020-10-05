@@ -187,12 +187,6 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         get_and_apply_api_keys(config_file_name, section, self.api_dict)
         self._current_api = self._default_api = default_api
 
-        # if isinstance(api_keys, str):
-        #     self.api_dict[default_api].set_api_key(api_keys)
-        # else:
-        #     for name, api_key in api_keys.items():
-        #         self.api_dict[name].set_api_key(api_key)
-
         self._return_unit = return_unit
         self._gets_handler = data_handler
         self._requests = []
@@ -248,18 +242,10 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return await self._gets(urls, from_json, headers)
 
     def collect(self):
-        # self._mode = COLLECT
         self.session.collect()
 
     async def release(self):
         return self._gets_handler(await self.session.release())
-        # self._mode = RELEASE
-        # try:
-        #     res = await self._gets()
-        # finally:
-        #     self._mode = DEFAULT
-
-        # return res
 
     # @add_api_name(None)
     async def test_fetch(self, *args, **kwargs):
@@ -320,6 +306,7 @@ class AsyncClient(AsyncInitObject, AsyncWith):
     async def translations(self, code: str = "", api: str = STAR) -> JSONS:
         return await self._fetchs("translations", api, code=code)
 
+    # TODO: api rearrange
     async def update_saves(self, now: bool = False, api: str = OFFIC) -> None:
         if now or time.time() - self._last_update >= self._min_update_time:
             self.collect()
@@ -336,7 +323,7 @@ class SyncClient(SyncWith):
     def __init__(
             self, api_keys: Union[str, STRDICT],
             api_dict: Dict[str, API] = {},
-            default_api: str = OFFIC,
+            # default_api: str = OFFIC,
             return_unit: bool = True,
             min_update_time: NUMBER = 60 * 10,
             data_handler: HANDLER = gets_handler,
@@ -354,7 +341,7 @@ class SyncClient(SyncWith):
             timeout=timeout, repeat_failed=repeat_failed
         )
         self.api_dict = {**default_api_dict, **api_dict}
-        self._current_api = self._default_api = default_api
+        # self._current_api = self._default_api = default_api
 
         if isinstance(api_keys, str):
             self.api_dict[default_api].set_api_key(api_keys)
