@@ -116,14 +116,19 @@ class DefaultOrderedDict(OrderedDict):
         return self.__copy__()
 
 
-class Mode:
+class Mode(object):
     __slots__ = "modes", "mode"
 
-    def __init__(self, modes: Collection[str]) -> None:
+    def __init__(self, modes: Collection[str],
+                 mode: Optional[str] = None) -> None:
         self.modes = modes
-        self.mode, *_ = modes
+        if mode is None:
+            self.mode, *_ = modes
+        else:
+            self.mode = None
+            self.__set__(None, mode)
 
-    def __get__(self, obj, type=None) -> str:
+    def __get__(self, obj, objtype=None) -> str:
         if obj is None:
             return self
         return self.mode
@@ -133,3 +138,29 @@ class Mode:
             self.mode = value
         else:
             raise ValueError(f"mode must be one of {self.modes}")
+
+
+class RetryCollectorWithModes:
+    def __init__(self, modes: Collection[str],
+                 mode: Optional[str] = None) -> None:
+        self.modes = modes
+        if mode is None:
+            self.mode, *_ = modes
+        else:
+            self.mode = mode
+
+        self.retry = []
+
+    def get_mode(self):
+        self._mode
+
+    def set_mode(self, value):
+        if value in self.modes:
+            self._mode = value
+        else:
+            raise ValueError(f"mode must be one of {self.modes}")
+
+    mode = property(get_mode, set_mode)
+
+    def get_retry(self, parameter_list):
+        pass

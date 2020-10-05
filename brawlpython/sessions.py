@@ -4,9 +4,9 @@ from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
 from asyncio import ensure_future as ensure, gather
 from cachetools import TTLCache
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from concurrent.futures import ThreadPoolExecutor
-from functools import update_wrapper
+from functools import update_wrapper, partial
 from requests import Session
 
 from .api_toolkit import (
@@ -148,12 +148,13 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             repeat_failed = 0
         self._attempts = range(repeat_failed, -1, -1)
 
-        self._retry = []
+        # self._retry = []
         self._headers_dumps = {}
         self._init_pars = DefaultOrderedDict(list)
 
         self._debug = False
         self.mode = Mode(MODES)
+        self.collects = ((self.mode, []))
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -288,7 +289,8 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             return await self._retrying_get()
 
         if params is None:
-            raise ValueError("params must not be None if mode is not RELEASE")
+            raise ValueError(
+                f"params must not be None if mode is not {RELEASE!r}")
 
         if self.mode == DEFAULT:
             self._init_pars.clear()

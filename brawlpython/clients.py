@@ -208,33 +208,34 @@ class AsyncClient(AsyncInitObject, AsyncWith):
         return self.session.closed
 
     async def _gets(self, *args) -> JSONSEQ:
-        not_collect = self.session.mode != COLLECT
+        # not_collect =
 
         resps = await self.session.gets(*args)
-        if not_collect:
+        if self.session.mode != COLLECT:
             return self._gets_handler(resps)
-        else:
-            return resps
+        if self.session.mode == RELEASE:
+            return resps  # None
 
     def _get_api(self, api: str):
         return self.api_dict[api]
 
-    async def _fetchs(self, paths: STRS, api: str, from_json: BOOLS = True,
-                      rearrange: bool = True, **kwargs) -> JSONS:
+    async def _fetchs(self, paths: STRS, api_names: str,
+                      from_json: BOOLS = True, rearrange: bool = True,
+                      **kwargs) -> JSONS:
 
         if rearrange:
             urls = []
             headers = []
-            pars = rearrange_params(api, paths, **kwargs)
+            pars = rearrange_params(api_names, paths, **kwargs)
 
-            for (api, *a), kw in pars:
-                api = self._get_api(api)
+            for (api_name, *a), kw in pars:
+                api = self._get_api(api_name)
 
                 urls.append(api.make_url(*a, **kw))
                 headers.append(
                     (api.headers))  # self.session.headers_handler
         else:
-            api = self._get_api(api)
+            api = self._get_api(api_names)
 
             urls = api.make_url(paths, **kwargs)
             headers = self.session.headers_handler(api.headers)
