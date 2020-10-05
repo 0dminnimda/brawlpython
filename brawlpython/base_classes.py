@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from abc import ABC
 from collections import OrderedDict, defaultdict
 from reprlib import recursive_repr
 from types import TracebackType
@@ -14,7 +15,7 @@ __all__ = (
 
 
 # SEE: https://stackoverflow.com/questions/33128325#45364670
-class AsyncInitObject(object):
+class AsyncInitObject(ABC):
     # Inheriting this class allows you to define an async __init__.
     # So you can create objects by doing something like `await MyClass(params)`
 
@@ -23,12 +24,13 @@ class AsyncInitObject(object):
         await instance.__init__(*args, **kwargs)
         return instance
 
+    @abstractmethod
     async def __init__(self):
         # the method must be overridden, therefore it does not need annotations
         pass
 
 
-class AsyncWith(object):
+class AsyncWith(ABC):
     def __enter__(self) -> None:
         raise TypeError("Use `async with` instead")
 
@@ -48,11 +50,12 @@ class AsyncWith(object):
                         exc_tb: Optional[TracebackType]) -> None:
         await self.close()
 
+    @abstractmethod
     async def close(self):
         self.test_close = True
 
 
-class SyncWith(object):
+class SyncWith(ABC):
     def __enter__(self) -> "SyncWith":
         return self
 
@@ -72,6 +75,7 @@ class SyncWith(object):
         # __aexit__ should exist in pair with __aenter__ but never executed
         pass
 
+    @abstractmethod
     def close(self):
         self.test_close = True
 
