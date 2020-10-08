@@ -65,7 +65,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
 class Response(AbcAsyncInit, AbcResponse):
     __slots__ = "code", "data"
 
-    async def __init__(self, resp, to_json: bool):
+    async def __init__(self, resp, to_json: bool) -> None:
         code = resp.status
         if to_json:
             data = await resp.json(loads=json.loads)
@@ -74,19 +74,20 @@ class Response(AbcAsyncInit, AbcResponse):
 
 
 class Request(AbcRequest):
-    __slots__ = ("session", "url", "to_json", "hashable_headers",
-                 "response_class")
+    __slots__ = ("url", "session", "response_class", "to_json", "headers",
+                 "hashable_headers")
 
     def __init__(self, url: str, session: AbcSession,
                  response_class: AbcResponse = Response,
-                 to_json: bool = True, headers: JSONTYPE = {}):
-        self.hashable_headers = json.dumps(headers)
-        self.session = session
+                 to_json: bool = True, headers: JSONTYPE = {}) -> None:
         self.url = url
-        self.to_json = to_json
+        self.session = session
         self.response_class = response_class
+        self.to_json = to_json
+        self.headers = headers
+        self.hashable_headers = json.dumps(headers)
 
-    async def send(self):
+    async def send(self) -> AbcResponse:
         async with self.session.get(self.url, headers=self.headers) as resp:
             response = self.response_class(resp, self.to_json)
 
