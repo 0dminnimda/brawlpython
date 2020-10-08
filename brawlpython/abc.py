@@ -85,3 +85,9 @@ class AbcSession(ABC):
     @abstractproperty
     def closed(self):
         ...
+
+
+class AbcRequest(ABC):
+    @abstractmethod
+    def send(self):
+        ...
