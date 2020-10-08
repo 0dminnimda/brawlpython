@@ -74,7 +74,8 @@ class Response(AbcAsyncInit, AbcResponse):
 
 
 class Request(AbcRequest):
-    __slots__ = "session", "url", "to_json", "hashable_headers"
+    __slots__ = ("session", "url", "to_json", "hashable_headers",
+                 "response_class")
 
     def __init__(self, url: str, session: AbcSession,
                  response_class: AbcResponse = Response,
@@ -83,6 +84,7 @@ class Request(AbcRequest):
         self.session = session
         self.url = url
         self.to_json = to_json
+        self.response_class = response_class
 
     async def send(self):
         async with self.session.get(self.url, headers=self.headers) as resp:
