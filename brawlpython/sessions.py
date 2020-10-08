@@ -28,7 +28,9 @@ from .helpers import json
 from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
                        NUMBER, BOOLS, STRJSON, AKW, STRBYTE)
 
-__all__ = ("Session", "Request")
+__all__ = ("Session",
+           "Request",
+           "Response")
 
 
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
