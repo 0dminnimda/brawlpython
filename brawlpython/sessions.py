@@ -4,12 +4,15 @@
 from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from asyncio import get_event_loop, sleep
 
-from .base_classes import AsyncInitObject, AsyncWith
+from .abc import AbcSession, AbcAsyncInit, AbcAsyncWith
 from .api_toolkit import DEFAULT_HEADERS
 
+from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
+                       NUMBER, BOOLS, STRJSON, AKW, STRBYTE)
 
-class Session(AsyncInitObject, AsyncWith):
-    async def __init__(self, trust_env: bool = True, timeout: NUMBER = 30):
+
+class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
+    async def __init__(self, timeout: NUMBER = 30, trust_env: bool = True):
         loop = get_event_loop()
         self.session = ClientSession(
             connector=TCPConnector(use_dns_cache=False, loop=loop),
