@@ -8,7 +8,9 @@ from typing import Any, Collection, Optional, Type, TypeVar
 __all__ = ("AbcAsyncInit",
            "AbcAsyncWith",
            "AbcSyncWith",
-           "AbcSession")
+           "AbcSession",
+           "AbcRequest",
+           "AbcResponse")
 
 
 # SEE: https://stackoverflow.com/questions/33128325#45364670
@@ -91,3 +93,7 @@ class AbcRequest(ABC):
     @abstractmethod
     def send(self):
         ...
+
+
+class AbcResponse(ABC):
+    pass
