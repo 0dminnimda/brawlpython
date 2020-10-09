@@ -91,7 +91,7 @@ class InternalServerError(ExpectedResponseCode):
     code = 500
 
 
-class ServiceUnavailable(ExpectedResponseCod-):
+class ServiceUnavailable(ExpectedResponseCode):
     """Service is temprorarily unavailable because of maintenance."""
 
     code = 503

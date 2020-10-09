@@ -2,7 +2,8 @@
 
 
 from aiohttp import ClientSession, TCPConnector, ClientTimeout, ClientResponse
-from asyncio import get_event_loop, sleep, gather, ensure_future
+from asyncio import (get_event_loop, sleep, gather, ensure_future,
+                     AbstractEventLoop)
 
 from typing import (
     Any,
@@ -76,15 +77,15 @@ class Response(AbcAsyncInit, AbcResponse):
     def _raise_for_status(self) -> None:
         message = self.message()
 
-        excp = next(filter(lambda excp: excp.code == code, WITH_CODE), None)
+        excp = next(filter(lambda e: e.code == self.code, WITH_CODE), None)
         if excp is not None:
-            raise excp(url, message)
+            raise excp(self.url, message)
         else:
-            raise UnexpectedResponseCode(code, url, message)
+            raise UnexpectedResponseCode(self.code, self.url, message)
 
 
 class Request(AbcRequest):
-    __slots__ = "url", "session", "response_class", "to_json", "headers"
+    __slots__ = "url", "_session", "_response_class", "to_json", "_headers"
     # "hashable_headers")
 
     def __init__(self, url: str, session: AbcSession,
@@ -99,16 +100,16 @@ class Request(AbcRequest):
 
     async def send(self) -> AbcResponse:
         async with self._session.get(self.url, headers=self._headers) as resp:
-            response = self._response_class(self.url, resp, self.to_json)
+            response = await self._response_class(self.url, resp, self.to_json)
 
-        return await response
+        return response
 
 
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
     async def __init__(self, repeat_failed: int = 3,
                        timeout: NUMBER = 30,
                        trust_env: bool = True,
-                       loop: Optional[asyncio.AbstractEventLoop] = None,
+                       loop: Optional[AbstractEventLoop] = None,
                        request_class: AbcRequest = Request,
                        response_class: AbcResponse = Response,
                        success_codes: Container[int] = (200,)) -> None:
@@ -127,10 +128,10 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
         self._request_class = request_class
         self._response_class = response_class
 
-        self._reqrespss = []
+        self._reqresps = []
         self._success_codes = success_codes
 
-        # make `number of attempts` + 1 (at least one), but last attempt - 0
+        # make `number of attempts` + 1 (at least one), but last attempt is 0
         if repeat_failed < 0:
             repeat_failed = 0
         self._attempts = range(repeat_failed, -1, -1)
@@ -142,7 +143,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
         if not self.closed:
             # SEE: https://github.com/aio-libs/aiohttp/issues/1925
             # https://docs.aiohttp.org/en/stable/client_advanced.html#graceful-shutdown
-            await self.session.close()
+            await self._session.close()
             await sleep(0.300)
 
     @property
@@ -150,7 +151,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
         """Is client session closed.
         A readonly property.
         """
-        return self.session.closed
+        return self._session.closed
 
     async def _reqresp_handler(self, attempt, i, req, resp):
         # recent attempts with this req have been unsuccessful
@@ -167,7 +168,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
             else:
                 self._failure_counter += 1
 
-    async def _start_attempt_cycle(self):
+    async def _run_attempt_cycle(self):
         if len(self._attempts) == 0:
             raise RuntimeError(
                 "self._attempts argument was changed"
@@ -195,4 +196,4 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
                                   to_json=to_json, headers=headers)
 
         self._reqresps.append([req, None])
-        return self._attempt_cycle()
+        return self._run_attempt_cycle()
