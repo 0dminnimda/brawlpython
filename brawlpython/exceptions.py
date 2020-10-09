@@ -7,6 +7,7 @@ __all__ = (
 
     "ClientResponseError",
     "UnexpectedResponseCode",
+    "ExpectedResponseCode",
     "BadRequest", "Forbidden", "NotFound",
     "TooManyRequests", "InternalServerError",
     "ServiceUnavailable", "WITH_CODE")
@@ -19,27 +20,19 @@ class ClientException(Exception):
 class ClientResponseError(ClientException):
     """Connection error during reading response."""
 
-    def __init__(self, url: str, reason: str = "without a reason",
-                 message: str = "no message"):
+    def __init__(self, url: str, message: str = "no message") -> None:
         self.url = url
-        self.reason = reason
         self.message = message
-        self.cause = "because " if reason != "without a reason" else ""
 
-    def __repr__(self):
-        return (
-            "{0.__class__.__name__}({0.url!r}, "
-            "{0.reason!r}, {0.message!r})").format(self)
+    def __repr__(self) -> str:
+        return "{0.__class__.__name__}({0.url!r}, {0.message!r})".format(self)
 
-    def __str__(self):
-        return (
-            "{0.url} -> {0.code}, {0.cause}"
-            "{0.reason}, {0.message}").format(self)
+    def __str__(self) -> str:
+        return "{0.url} -> {0.code}; {0.message}".format(self)
 
-    def __eq__(self, other):
-        return (
-            (dir(self) == dir(other))
-            and (vars(self) == vars(other)))
+    def __eq__(self, other) -> bool:
+        return ((dir(self) == dir(other))
+                and (vars(self) == vars(other)))
 
 
 class UnexpectedResponseCode(ClientResponseError):
@@ -47,23 +40,30 @@ class UnexpectedResponseCode(ClientResponseError):
     in the official api documentation.
     """
 
-    def __init__(self, url: str, code: int, *args: Any, **kwargs: Any):
+    def __init__(self, code: int, *args, **kwargs) -> None:
         self.code = code
-        super().__init__(url, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-    def __repr__(self):
-        return (
-            "{0.__class__.__name__}({0.url!r}, {0.code!r}, "
-            "{0.reason!r}, {0.message!r})").format(self)
+    def __repr__(self) -> str:
+        return ("{0.__class__.__name__}({0.url!r}, {0.code!r}, "
+                "{0.message!r})").format(self)
 
 
-class BadRequest(ClientResponseError):
+class ExpectedResponseCode(ClientResponseError):
+    """Occurs if the response code was described
+    in the official api documentation.
+    """
+
+    code = None
+
+
+class BadRequest(ExpectedResponseCode):
     """Client provided incorrect parameters for the request."""
 
     code = 400
 
 
-class Forbidden(ClientResponseError):
+class Forbidden(ExpectedResponseCode):
     """Access denied, either because of missing/incorrect credentials or
     used API key/token does not grant access to the requested resource.
     """
@@ -71,13 +71,13 @@ class Forbidden(ClientResponseError):
     code = 403
 
 
-class NotFound(ClientResponseError):
+class NotFound(ExpectedResponseCode):
     """Resource was not found."""
 
     code = 404
 
 
-class TooManyRequests(ClientResponseError):
+class TooManyRequests(ExpectedResponseCode):
     """Request was throttled, because amount of requests
     was above the threshold defined for the used API key/token.
     """
@@ -85,13 +85,13 @@ class TooManyRequests(ClientResponseError):
     code = 429
 
 
-class InternalServerError(ClientResponseError):
+class InternalServerError(ExpectedResponseCode):
     """Unknown error happened when handling the request."""
 
     code = 500
 
 
-class ServiceUnavailable(ClientResponseError):
+class ServiceUnavailable(ExpectedResponseCod-):
     """Service is temprorarily unavailable because of maintenance."""
 
     code = 503
