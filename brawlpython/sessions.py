@@ -119,6 +119,11 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
                 self._failure_counter += 1
 
     async def _start_attempt_cycle(self):
+        if len(self._attempts) == 0:
+            raise RuntimeError(
+                "self._attempts argument was changed"
+                " causing it to work incorrectly")
+
         for attempt in self._attempts:
             tasks = []
             self._failure_counter = 0
@@ -145,14 +150,14 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
 
 
 class Response(AbcAsyncInit, AbcResponse):
-    __slots__ = "code", "data"
+    __slots__ = "code", "text", "json"
 
     async def __init__(self, resp, to_json: bool) -> None:
         self.code = resp.status
+        self.text = await resp.text()
+        self.json = None
         if to_json:
-            self.data = await resp.json(loads=json.loads)
-        else:
-            self.data = await resp.text()
+            self.json = await resp.json(loads=json.loads)
 
 
 class Request(AbcRequest):
