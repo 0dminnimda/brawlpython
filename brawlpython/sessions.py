@@ -35,6 +35,75 @@ __all__ = ("Session",
            "Response")
 
 
+class Response(AbcAsyncInit, AbcResponse):
+    __slots__ = "url", "code", "text", "json"
+
+    async def __init__(self, url: str, resp: ClientResponse,
+                       to_json: bool) -> None:
+        self.url = url
+        self.code = resp.status
+        self.text = await resp.text()
+        self.json = None
+        if to_json:
+            self.json = await resp.json(loads=json.loads)
+
+    def try_json_loads(self, default: Any = None) -> Optional[JSONTYPE]:
+        try:
+            return json.loads(self.text)
+        except json.JSONDecodeError:
+            return default
+
+    def message(self) -> str:
+        json = self.json
+        if json is None:
+            json = self.try_json_loads()
+
+        if json is None:
+            reason = ""
+            message = self.text
+        else:
+            reason = self.json.get("reason", "")
+            message = self.json.get("message", "")
+
+        if len(reason) + len(message) == 0:
+            message = "no message"
+
+        if len(reason) > 0 and len(message) > 0:
+            reason += ", "
+
+        return reason + message
+
+    def _raise_for_status(self) -> None:
+        message = self.message()
+
+        excp = next(filter(lambda excp: excp.code == code, WITH_CODE), None)
+        if excp is not None:
+            raise excp(url, message)
+        else:
+            raise UnexpectedResponseCode(code, url, message)
+
+
+class Request(AbcRequest):
+    __slots__ = "url", "session", "response_class", "to_json", "headers"
+    # "hashable_headers")
+
+    def __init__(self, url: str, session: AbcSession,
+                 response_class: AbcResponse = Response,
+                 to_json: bool = True, headers: JSONTYPE = {}) -> None:
+        self.url = url
+        self._session = session
+        self._response_class = response_class
+        self.to_json = to_json
+        self._headers = headers
+        # self._hashable_headers = json.dumps(headers)
+
+    async def send(self) -> AbcResponse:
+        async with self._session.get(self.url, headers=self._headers) as resp:
+            response = self._response_class(self.url, resp, self.to_json)
+
+        return await response
+
+
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
     async def __init__(self, repeat_failed: int = 3,
                        timeout: NUMBER = 30,
@@ -127,72 +196,3 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
 
         self._reqresps.append([req, None])
         return self._attempt_cycle()
-
-
-class Response(AbcAsyncInit, AbcResponse):
-    __slots__ = "url", "code", "text", "json"
-
-    async def __init__(self, url: str, resp: ClientResponse,
-                       to_json: bool) -> None:
-        self.url = url
-        self.code = resp.status
-        self.text = await resp.text()
-        self.json = None
-        if to_json:
-            self.json = await resp.json(loads=json.loads)
-
-    def try_json_loads(self, default: Any = None) -> Optional[JSONTYPE]:
-        try:
-            return json.loads(self.text)
-        except json.JSONDecodeError:
-            return default
-
-    def message(self) -> str:
-        json = self.json
-        if json is None:
-            json = self.try_json_loads()
-
-        if json is None:
-            reason = ""
-            message = self.text
-        else:
-            reason = self.json.get("reason", "")
-            message = self.json.get("message", "")
-
-        if len(reason) + len(message) == 0:
-            message = "no message"
-
-        if len(reason) > 0 and len(message) > 0:
-            reason += ", "
-
-        return reason + message
-
-    def _raise_for_status(self) -> None:
-        message = self.message()
-
-        excp = next(filter(lambda excp: excp.code == code, WITH_CODE), None)
-        if excp is not None:
-            raise excp(url, message)
-        else:
-            raise UnexpectedResponseCode(code, url, message)
-
-
-class Request(AbcRequest):
-    __slots__ = "url", "session", "response_class", "to_json", "headers"
-    # "hashable_headers")
-
-    def __init__(self, url: str, session: AbcSession,
-                 response_class: AbcResponse = Response,
-                 to_json: bool = True, headers: JSONTYPE = {}) -> None:
-        self.url = url
-        self._session = session
-        self._response_class = response_class
-        self.to_json = to_json
-        self._headers = headers
-        # self._hashable_headers = json.dumps(headers)
-
-    async def send(self) -> AbcResponse:
-        async with self._session.get(self.url, headers=self._headers) as resp:
-            response = self._response_class(self.url, resp, self.to_json)
-
-        return await response
