@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
+from aiohttp import ClientSession, TCPConnector, ClientTimeout, ClientResponse
 from asyncio import get_event_loop, sleep, gather, ensure_future
 
 from typing import (
@@ -83,38 +83,18 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
         """
         return self.session.closed
 
-    def _raise_for_status(self, url: str, code: int,
-                          data: Union[JSONTYPE, str]) -> None:
-
-        if isinstance(data, str):
-            message = data if len(data) > 0 else "no message"
-        else:
-            reason = data.get("reason", "")
-            message = data.get("message", "")
-
-            if len(reason) + len(message) == 0:
-                message = "no message"
-
-            if len(reason) > 0 and len(message) > 0:
-                reason += "; "
-
-            message = reason + message
-
-        excp = next(filter(lambda excp: excp.code == code, WITH_CODE), None)
-        if excp is not None:
-            raise excp(url, message)
-        else:
-            raise UnexpectedResponseCode(url, code, message)
-
     async def _reqresp_handler(self, attempt, i, req, resp):
         # recent attempts with this req have been unsuccessful
         if resp is None:
             resp = await req.send()
             if resp.code in self._success_codes:
-                # set current resp to successful
+                # set the current resp to successful
                 self._reqresps[i][1] = resp
+                # set the current req to None
+                # because it is no longer needed
+                self._reqresps[i][0] = None
             elif attempt == 0:  # last attempt
-                self._raise_for_status(req.url, resp.code, resp.data)
+                resp._raise_for_status()
             else:
                 self._failure_counter += 1
 
@@ -150,14 +130,51 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
 
 
 class Response(AbcAsyncInit, AbcResponse):
-    __slots__ = "code", "text", "json"
+    __slots__ = "url", "code", "text", "json"
 
-    async def __init__(self, resp, to_json: bool) -> None:
+    async def __init__(self, url: str, resp: ClientResponse,
+                       to_json: bool) -> None:
+        self.url = url
         self.code = resp.status
         self.text = await resp.text()
         self.json = None
         if to_json:
             self.json = await resp.json(loads=json.loads)
+
+    def try_json_loads(self, default: Any = None) -> Optional[JSONTYPE]:
+        try:
+            return json.loads(self.text)
+        except json.JSONDecodeError:
+            return default
+
+    def message(self) -> str:
+        json = self.json
+        if json is None:
+            json = self.try_json_loads()
+
+        if json is None:
+            reason = ""
+            message = self.text
+        else:
+            reason = self.json.get("reason", "")
+            message = self.json.get("message", "")
+
+        if len(reason) + len(message) == 0:
+            message = "no message"
+
+        if len(reason) > 0 and len(message) > 0:
+            reason += ", "
+
+        return reason + message
+
+    def _raise_for_status(self) -> None:
+        message = self.message()
+
+        excp = next(filter(lambda excp: excp.code == code, WITH_CODE), None)
+        if excp is not None:
+            raise excp(url, message)
+        else:
+            raise UnexpectedResponseCode(code, url, message)
 
 
 class Request(AbcRequest):
@@ -176,6 +193,6 @@ class Request(AbcRequest):
 
     async def send(self) -> AbcResponse:
         async with self._session.get(self.url, headers=self._headers) as resp:
-            response = self._response_class(resp, self.to_json)
+            response = self._response_class(self.url, resp, self.to_json)
 
         return await response
