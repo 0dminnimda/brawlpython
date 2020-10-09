@@ -34,15 +34,18 @@ __all__ = ("Session",
 
 
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
-    async def __init__(self, timeout: NUMBER = 30, trust_env: bool = True):
+    async def __init__(self, timeout: NUMBER = 30, trust_env: bool = True,
+                       request_class: AbcRequest = Request):
         loop = get_event_loop()
-        self.session = ClientSession(
+        self._session = ClientSession(
             connector=TCPConnector(use_dns_cache=False, loop=loop),
             loop=loop,
             headers=DEFAULT_HEADERS,
             json_serialize=json.dumps,
             timeout=ClientTimeout(total=timeout),
             trust_env=trust_env)
+
+        self._request_class = request_class
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -66,11 +69,11 @@ class Response(AbcAsyncInit, AbcResponse):
     __slots__ = "code", "data"
 
     async def __init__(self, resp, to_json: bool) -> None:
-        code = resp.status
+        self.code = resp.status
         if to_json:
-            data = await resp.json(loads=json.loads)
+            self.data = await resp.json(loads=json.loads)
         else:
-            data = await resp.text()
+            self.data = await resp.text()
 
 
 class Request(AbcRequest):
@@ -81,14 +84,14 @@ class Request(AbcRequest):
                  response_class: AbcResponse = Response,
                  to_json: bool = True, headers: JSONTYPE = {}) -> None:
         self.url = url
-        self.session = session
-        self.response_class = response_class
+        self._session = session
+        self._response_class = response_class
         self.to_json = to_json
-        self.headers = headers
-        self.hashable_headers = json.dumps(headers)
+        self._headers = headers
+        self._hashable_headers = json.dumps(headers)
 
     async def send(self) -> AbcResponse:
-        async with self.session.get(self.url, headers=self.headers) as resp:
-            response = self.response_class(resp, self.to_json)
+        async with self._session.get(self.url, headers=self._headers) as resp:
+            response = self._response_class(resp, self.to_json)
 
         return await response
