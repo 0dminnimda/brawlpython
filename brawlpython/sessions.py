@@ -125,7 +125,7 @@ class Response(AbcAsyncInit, AbcResponse):
 
 class Request(AbcRequest):
     __slots__ = "url", "session", "response_class", "to_json", "headers"
-                 # "hashable_headers")
+    # "hashable_headers")
 
     def __init__(self, url: str, session: AbcSession,
                  response_class: AbcResponse = Response,
