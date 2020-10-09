@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Any, Collection, Optional, Type, TypeVar
 
@@ -92,7 +92,8 @@ class AbcSession(ABC):
     def close(self):
         ...
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def closed(self):
         ...
 
@@ -107,3 +108,7 @@ class AbcRequest(ABC):
 
 class AbcResponse(ABC):
     __slots__ = ()
+
+    @abstractmethod
+    def _raise_for_status(self):
+        ...
