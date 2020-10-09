@@ -19,6 +19,8 @@ class AbcAsyncInit(ABC):
     and maintains its asynchronous behavior.
     '''
 
+    __slots__ = ()
+
     async def __new__(cls, *args, **kwargs) -> "AsyncInitObject":
         instance = super().__new__(cls)
         await instance.__init__(*args, **kwargs)
@@ -30,6 +32,8 @@ class AbcAsyncInit(ABC):
 
 
 class AbcAsyncWith(ABC):
+    __slots__ = ()
+
     def __enter__(self) -> None:
         raise TypeError("Use `async with` instead")
 
@@ -55,6 +59,8 @@ class AbcAsyncWith(ABC):
 
 
 class AbcSyncWith(ABC):
+    __slots__ = ()
+
     def __enter__(self) -> "SyncWith":
         return self
 
@@ -80,6 +86,8 @@ class AbcSyncWith(ABC):
 
 
 class AbcSession(ABC):
+    __slots__ = ()
+
     @abstractmethod
     def close(self):
         ...
@@ -90,10 +98,12 @@ class AbcSession(ABC):
 
 
 class AbcRequest(ABC):
+    __slots__ = ()
+
     @abstractmethod
     def send(self):
         ...
 
 
 class AbcResponse(ABC):
-    pass
+    __slots__ = ()
