@@ -56,16 +56,13 @@ class Response(AbcResponse):
             return default
 
     def message(self) -> str:
-        json = self.json
-        if json is None:
-            json = self.try_json_loads()
-
+        json = self.json()
         if json is None:
             reason = ""
             message = self.text
         else:
-            reason = self.json.get("reason", "")
-            message = self.json.get("message", "")
+            reason = json.get("reason", "")
+            message = json.get("message", "")
 
         if len(reason) + len(message) == 0:
             message = "no message"
