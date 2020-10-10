@@ -11,6 +11,7 @@ __all__ = ("AbcAsyncInit",
            "AbcSession",
            "AbcRequest",
            "AbcResponse",
+           "AbcAttemptCycle",
            "AbcCollector")
 
 
@@ -116,6 +117,14 @@ class AbcResponse(ABC):
 
     @abstractmethod
     def json(self):
+        ...
+
+
+class AbcAttemptCycle(ABC):
+    __slots__ = ()
+
+    @abstractmethod
+    def run(self):
         ...
 
 

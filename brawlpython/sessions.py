@@ -25,8 +25,8 @@ from typing import (
     Union)
 
 from .abc import (AbcSession, AbcAsyncInit, AbcAsyncWith, AbcRequest,
-                  AbcResponse)
 from .api_toolkit import DEFAULT_HEADERS
+                  AbcResponse, AbcAttemptCycle, AbcCollector)
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .helpers import json
 from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS, NUMBER, BOOLS,
@@ -123,6 +123,55 @@ class Collector(AbcCollector):
 
     def clear(self) -> None:
         self._reqresps.clear()
+
+
+class AttemptCycle(AbcAttemptCycle):
+    def __init__(self, repeat_failed: int = 3,
+                 success_codes: Container[int] = (200,)) -> None:
+
+        if repeat_failed < 0:
+            raise ValueError("repeat_failed must be a positive integer")
+
+        # will make at least one attempt, last attempt is 0
+        self._attempts = range(repeat_failed, -1, -1)
+        self._success_codes = success_codes
+
+    async def _reqresp_handler(self, collector: AbcCollector, attempt: int,
+                               i: int, req: AbcRequest, resp: AbcResponse):
+
+        # recent attempts with this req have been unsuccessful
+        if resp is None:
+            resp = await req.send()
+            if resp.code in self._success_codes:
+                # set the current resp to successful
+                collector[i][1] = resp
+                # set the current req to None
+                # because it is no longer needed
+                collector[i][0] = None
+            elif attempt == 0:  # last attempt
+                resp.raise_code()
+            else:
+                self._failure_counter += 1
+
+    async def run(self, collector: AbcCollector):
+        if len(self._attempts) == 0:
+            raise RuntimeError("self._attempts attribute was changed"
+                               " causing it to work incorrectly")
+
+        for attempt in self._attempts:
+            tasks = []
+            self._failure_counter = 0
+            for i, (req, resp) in enumerate(collector):
+                tasks.append(ensure_future(
+                    self._reqresp_handler(collector, attempt, i, req, resp)))
+
+            await gather(*tasks)
+
+            if self._failure_counter == 0:
+                # collect resps
+                result = [resp for req, resp in collector]
+                collector.clear()
+                return result
 
 
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
