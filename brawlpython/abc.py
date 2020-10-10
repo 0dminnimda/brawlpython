@@ -110,5 +110,9 @@ class AbcResponse(ABC):
     __slots__ = ()
 
     @abstractmethod
-    def _raise_for_status(self):
+    def raise_code(self):
+        ...
+
+    @abstractmethod
+    def json(self):
         ...
