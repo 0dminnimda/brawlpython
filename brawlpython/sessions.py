@@ -14,6 +14,7 @@ from typing import (
     Generator,
     Generic,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -28,8 +29,8 @@ from .abc import (AbcSession, AbcAsyncInit, AbcAsyncWith, AbcRequest,
 from .api_toolkit import DEFAULT_HEADERS
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .helpers import json
-from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
-                       NUMBER, BOOLS, STRJSON, AKW, STRBYTE)
+from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS, NUMBER, BOOLS,
+                       STRJSON, AKW, STRBYTE, REQRESP)
 
 __all__ = (
     "Session",

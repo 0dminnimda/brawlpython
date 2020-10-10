@@ -10,7 +10,8 @@ __all__ = ("AbcAsyncInit",
            "AbcSyncWith",
            "AbcSession",
            "AbcRequest",
-           "AbcResponse")
+           "AbcResponse",
+           "AbcCollector")
 
 
 # SEE: https://stackoverflow.com/questions/33128325#45364670
@@ -115,4 +116,12 @@ class AbcResponse(ABC):
 
     @abstractmethod
     def json(self):
+        ...
+
+
+class AbcCollector(ABC):
+    __slots__ = ()
+
+    @abstractmethod
+    def add_request(self):
         ...
