@@ -31,26 +31,27 @@ from .helpers import json
 from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
                        NUMBER, BOOLS, STRJSON, AKW, STRBYTE)
 
-__all__ = ("Session",
-           "Request",
-           "Response")
+__all__ = (
+    "Session",
+    "Request",
+    "Response")
 
 
-class Response(AbcAsyncInit, AbcResponse):
-    __slots__ = "url", "code", "text", "json"
+class Response(AbcResponse):
+    __slots__ = "url", "code", "text"
 
-    async def __init__(self, url: str, resp: ClientResponse,
-                       to_json: bool) -> None:
+    def __init__(self, url: str, code: int, text: str) -> None:
         self.url = url
-        self.code = resp.status
-        self.text = await resp.text()
-        self.json = None
-        if to_json:
-            self.json = await resp.json(loads=json.loads)
+        self.code = code
+        self.text = text
 
-    def try_json_loads(self, default: Any = None) -> Optional[JSONTYPE]:
+    def json(self, default: Any = None) -> Optional[JSONTYPE]:
+        stripped = self.text.strip()
+        if not stripped:
+            return default
+
         try:
-            return json.loads(self.text)
+            return json.loads(stripped)
         except json.JSONDecodeError:
             return default
 
@@ -74,7 +75,7 @@ class Response(AbcAsyncInit, AbcResponse):
 
         return reason + message
 
-    def _raise_for_status(self) -> None:
+    def raise_code(self):
         message = self.message()
 
         excp = next(filter(lambda e: e.code == self.code, WITH_CODE), None)
@@ -85,22 +86,22 @@ class Response(AbcAsyncInit, AbcResponse):
 
 
 class Request(AbcRequest):
-    __slots__ = "url", "_session", "_response_class", "to_json", "_headers"
+    __slots__ = "url", "_session", "_response_class", "_headers"
     # "hashable_headers")
 
     def __init__(self, url: str, session: AbcSession,
                  response_class: AbcResponse = Response,
-                 to_json: bool = True, headers: JSONTYPE = {}) -> None:
+                 headers: JSONTYPE = {}) -> None:
         self.url = url
         self._session = session
         self._response_class = response_class
-        self.to_json = to_json
         self._headers = headers
         # self._hashable_headers = json.dumps(headers)
 
     async def send(self) -> AbcResponse:
         async with self._session.get(self.url, headers=self._headers) as resp:
-            response = await self._response_class(self.url, resp, self.to_json)
+            response = self._response_class(
+                self.url, resp.status, await resp.text())
 
         return response
 
@@ -164,7 +165,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
                 # because it is no longer needed
                 self._reqresps[i][0] = None
             elif attempt == 0:  # last attempt
-                resp._raise_for_status()
+                resp.raise_code()
             else:
                 self._failure_counter += 1
 
@@ -189,11 +190,11 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
                 self._reqresps.clear()
                 return result
 
-    def one_get(self, url: str, to_json: bool = True,
-                headers: JSONTYPE = {}) -> JSONTYPE:
+    def one_get(self, url: str, headers: JSONTYPE = {}) -> JSONTYPE:
+
         req = self._request_class(url, session=self._session,
                                   response_class=self._response_class,
-                                  to_json=to_json, headers=headers)
+                                  headers=headers)
 
         self._reqresps.append([req, None])
         return self._run_attempt_cycle()
