@@ -103,6 +103,27 @@ class Request(AbcRequest):
         return response
 
 
+class Collector(AbcCollector):
+    def __init__(self) -> None:
+        self._reqresps = []
+
+    def __getitem__(self, key) -> REQRESP:
+        return self._reqresps[key]
+
+    def __setitem__(self, key, value) -> None:
+        self._reqresps[key] = value
+
+    def add_request(self, request: AbcRequest) -> None:
+        self._reqresps.append([request, None])
+
+    def items(self) -> Iterator[Tuple[int, REQRESP]]:
+        for i, reqresp in enumerate(self._reqresps):
+            yield i, reqresp
+
+    def clear(self) -> None:
+        self._reqresps.clear()
+
+
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
     async def __init__(self, repeat_failed: int = 3,
                        timeout: NUMBER = 30,

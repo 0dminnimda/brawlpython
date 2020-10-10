@@ -18,6 +18,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from .abc import AbcRequest, AbcResponse
 
 
 __all__ = (
@@ -31,7 +32,8 @@ __all__ = (
     "NUMBER",
     "INTSTR",
     "AKW",
-    "STRBYTE")
+    "STRBYTE",
+    "REQRESP")
 
 # SEE: https://github.com/python/typing/issues/182
 JSONVALS = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
@@ -61,3 +63,5 @@ ARGS = Sequence[Any]
 AKW = Tuple[ARGS, Mapping[str, Any]]
 
 STRBYTE = Union[str, bytes]
+
+REQRESP = Tuple[Optional[AbcRequest], Optional[AbcResponse]]
