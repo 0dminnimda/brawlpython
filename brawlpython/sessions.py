@@ -3,7 +3,7 @@
 
 from aiohttp import ClientSession, TCPConnector, ClientTimeout, ClientResponse
 from asyncio import (get_event_loop, sleep, gather, ensure_future,
-                     AbstractEventLoop)
+                     AbstractEventLoop, wait)
 
 from typing import (
     Any,
@@ -25,8 +25,8 @@ from typing import (
     Union)
 
 from .abc import (AbcSession, AbcAsyncInit, AbcAsyncWith, AbcRequest,
-from .api_toolkit import DEFAULT_HEADERS
                   AbcResponse, AbcCycle, AbcCollector)
+from .api_toolkit import DEFAULT_HEADERS, rearrange_args
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .helpers import json
 from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS, NUMBER, BOOLS,
@@ -184,15 +184,21 @@ class AttemptCycle(AbcCycle):
 COLLECT = "collect"
 DEFAULT = "default"
 
+DEFAULT_CYCLE = AttemptCycle(repeat_failed=3, success_codes=(200,))
+
 
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
-    async def __init__(self, repeat_failed: int = 3,
-                       timeout: NUMBER = 30,
+
+    _mode = DEFAULT
+    _collectors = []
+
+    async def __init__(self, timeout: NUMBER = 30,
                        trust_env: bool = True,
                        loop: Optional[AbstractEventLoop] = None,
+                       cycle: Optional[AbcCycle] = None,
                        request_class: AbcRequest = Request,
                        response_class: AbcResponse = Response,
-                       success_codes: Container[int] = (200,)) -> None:
+                       collector_class: AbcCollector = Collector) -> None:
 
         if loop is None:
             loop = get_event_loop()
@@ -207,14 +213,12 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
 
         self._request_class = request_class
         self._response_class = response_class
+        self._collector_class = collector_class
 
-        self._reqresps = []
-        self._success_codes = success_codes
-
-        # make `number of attempts` + 1 (at least one), but last attempt is 0
-        if repeat_failed < 0:
-            repeat_failed = 0
-        self._attempts = range(repeat_failed, -1, -1)
+        if cycle is None:
+            self._cycle = DEFAULT_CYCLE
+        else:
+            self._cycle = cycle
 
     async def close(self) -> None:
         """Close underlying connector.
@@ -224,7 +228,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
             # SEE: https://github.com/aio-libs/aiohttp/issues/1925
             # https://docs.aiohttp.org/en/stable/client_advanced.html#graceful-shutdown
             await self._session.close()
-            await sleep(0.300)
+            await sleep(0.250)
 
     @property
     def closed(self) -> bool:
@@ -233,47 +237,45 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
         """
         return self._session.closed
 
-    async def _reqresp_handler(self, attempt, i, req, resp):
-        # recent attempts with this req have been unsuccessful
-        if resp is None:
-            resp = await req.send()
-            if resp.code in self._success_codes:
-                # set the current resp to successful
-                self._reqresps[i][1] = resp
-                # set the current req to None
-                # because it is no longer needed
-                self._reqresps[i][0] = None
-            elif attempt == 0:  # last attempt
-                resp.raise_code()
-            else:
-                self._failure_counter += 1
+    @property
+    def mode(self) -> str:
+        return self._mode
 
-    async def _run_attempt_cycle(self):
-        if len(self._attempts) == 0:
-            raise RuntimeError(
-                "self._attempts argument was changed"
-                " causing it to work incorrectly")
+    def collect(self):
+        self._mode = COLLECT
+        self._collectors.append(self._collector_class())
 
-        for attempt in self._attempts:
-            tasks = []
-            self._failure_counter = 0
-            for i, (req, resp) in enumerate(self._reqresps):
-                tasks.append(ensure_future(
-                    self._reqresp_handler(attempt, i, req, resp)))
+    async def release(self):
+        if self.mode == COLLECT:
+            self._mode = DEFAULT
+            responses = await self._cycle.run(self._collectors[-1])
+            del self._collectors[-1]
+            return responses
 
-            await gather(*tasks)
+        raise RuntimeError(f"release called when mode == {DEFAULT}")
 
-            if self._failure_counter == 0:
-                # collect resps
-                result = [resp for req, resp in self._reqresps]
-                self._reqresps.clear()
-                return result
-
-    def one_get(self, url: str, headers: JSONTYPE = {}) -> JSONTYPE:
+    async def get(self, url: str,
+                  headers: JSONTYPE = {}) -> Optional[JSONTYPE]:
 
         req = self._request_class(url, session=self._session,
                                   response_class=self._response_class,
                                   headers=headers)
 
-        self._reqresps.append([req, None])
-        return self._run_attempt_cycle()
+        if self.mode == COLLECT:
+            self._collectors[-1].append_request(req)
+        else:
+            self.collect()
+            self._collectors[-1].append_request(req)
+            return (await self.release())[0]
+
+    async def gets(self, url: str, headers: JSONSEQ = {}):
+        params = rearrange_args(url, headers)
+
+        if self.mode == COLLECT:
+            for a in params:
+                await self.get(*a)
+        else:
+            self.collect()
+            for a in params:
+                await self.get(*a)
+            return await self.release()
