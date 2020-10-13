@@ -35,7 +35,9 @@ from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS, NUMBER, BOOLS,
 __all__ = (
     "Session",
     "Request",
-    "Response")
+    "Response",
+    "COLLECT",
+    "DEFAULT")
 
 
 class Response(AbcResponse):
@@ -105,6 +107,8 @@ class Request(AbcRequest):
 
 
 class Collector(AbcCollector):
+    __slots__ = "_reqresps"
+
     def __init__(self) -> None:
         self._reqresps = []
 
@@ -114,15 +118,21 @@ class Collector(AbcCollector):
     def __setitem__(self, key, value) -> None:
         self._reqresps[key] = value
 
-    def add_request(self, request: AbcRequest) -> None:
-        self._reqresps.append([request, None])
+    def __iter__(self) -> Iterator[REQRESP]:
+        return iter(self._reqresps)
 
-    def items(self) -> Iterator[Tuple[int, REQRESP]]:
+    def items(self) -> Generator[Tuple[int, REQRESP], None, None]:
         for i, reqresp in enumerate(self._reqresps):
             yield i, reqresp
 
     def clear(self) -> None:
         self._reqresps.clear()
+
+    def append_request(self, request: AbcRequest) -> None:
+        self._reqresps.append([request, None])
+
+    def get_responses(self) -> List[Optional[AbcResponse]]:
+        return [resp for req, resp in self]
 
 
 class AttemptCycle(AbcAttemptCycle):
