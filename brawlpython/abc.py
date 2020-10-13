@@ -11,7 +11,7 @@ __all__ = ("AbcAsyncInit",
            "AbcSession",
            "AbcRequest",
            "AbcResponse",
-           "AbcAttemptCycle",
+           "AbcCycle",
            "AbcCollector")
 
 
@@ -120,7 +120,7 @@ class AbcResponse(ABC):
         ...
 
 
-class AbcAttemptCycle(ABC):
+class AbcCycle(ABC):
     __slots__ = ()
 
     @abstractmethod
@@ -132,5 +132,29 @@ class AbcCollector(ABC):
     __slots__ = ()
 
     @abstractmethod
-    def add_request(self):
+    def __getitem__(self):
+        ...
+
+    @abstractmethod
+    def __setitem__(self):
+        ...
+
+    @abstractmethod
+    def __iter__(self):
+        ...
+
+    @abstractmethod
+    def items(self):
+        ...
+
+    @abstractmethod
+    def clear(self):
+        ...
+
+    @abstractmethod
+    def append_request(self):
+        ...
+
+    @abstractmethod
+    def get_responses(self):
         ...
