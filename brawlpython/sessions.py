@@ -26,7 +26,7 @@ from typing import (
 
 from .abc import (AbcSession, AbcAsyncInit, AbcAsyncWith, AbcRequest,
 from .api_toolkit import DEFAULT_HEADERS
-                  AbcResponse, AbcAttemptCycle, AbcCollector)
+                  AbcResponse, AbcCycle, AbcCollector)
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .helpers import json
 from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS, NUMBER, BOOLS,
@@ -135,7 +135,7 @@ class Collector(AbcCollector):
         return [resp for req, resp in self]
 
 
-class AttemptCycle(AbcAttemptCycle):
+class AttemptCycle(AbcCycle):
     def __init__(self, repeat_failed: int = 3,
                  success_codes: Container[int] = (200,)) -> None:
 
@@ -155,8 +155,7 @@ class AttemptCycle(AbcAttemptCycle):
             if resp.code in self._success_codes:
                 # set the current resp to successful
                 collector[i][1] = resp
-                # set the current req to None
-                # because it is no longer needed
+                # set the current req to None, because it is no longer needed
                 collector[i][0] = None
             elif attempt == 0:  # last attempt
                 resp.raise_code()
@@ -171,17 +170,19 @@ class AttemptCycle(AbcAttemptCycle):
         for attempt in self._attempts:
             tasks = []
             self._failure_counter = 0
-            for i, (req, resp) in enumerate(collector):
+            for i, reqresp in collector.items():
                 tasks.append(ensure_future(
-                    self._reqresp_handler(collector, attempt, i, req, resp)))
+                    self._reqresp_handler(collector, attempt, i, *reqresp)))
 
-            await gather(*tasks)
+            await wait(tasks)
+            # await gather(*tasks)
 
             if self._failure_counter == 0:
-                # collect resps
-                result = [resp for req, resp in collector]
-                collector.clear()
-                return result
+                return collector.get_responses()
+
+
+COLLECT = "collect"
+DEFAULT = "default"
 
 
 class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
