@@ -3,6 +3,8 @@
 from typing import Any
 
 __all__ = (
+    "BrawlPythonException",
+
     "ClientException",
 
     "ClientResponseError",
@@ -13,7 +15,11 @@ __all__ = (
     "ServiceUnavailable", "WITH_CODE")
 
 
-class ClientException(Exception):
+class BrawlPythonException(Exception):
+    """Base class for all brawlpython exceptions."""
+
+
+class ClientException(BrawlPythonException):
     """Base class for all client exceptions."""
 
 
