@@ -15,7 +15,7 @@ __all__ = (
 
 
 # SEE: https://stackoverflow.com/questions/33128325#45364670
-class AsyncInitObject(ABC):
+class AsyncInitObject:#(ABC):
     # Inheriting this class allows you to define an async __init__.
     # So you can create objects by doing something like `await MyClass(params)`
 
@@ -24,13 +24,13 @@ class AsyncInitObject(ABC):
         await instance.__init__(*args, **kwargs)
         return instance
 
-    @abstractmethod
+    # @abstractmethod
     async def __init__(self):
         # the method must be overridden, therefore it does not need annotations
         pass
 
 
-class AsyncWith(ABC):
+class AsyncWith:#(ABC):
     def __enter__(self) -> None:
         raise TypeError("Use `async with` instead")
 
@@ -50,12 +50,12 @@ class AsyncWith(ABC):
                         exc_tb: Optional[TracebackType]) -> None:
         await self.close()
 
-    @abstractmethod
+    #@abstractmethod
     async def close(self):
         self.test_close = True
 
 
-class SyncWith(ABC):
+class SyncWith:#(ABC):
     def __enter__(self) -> "SyncWith":
         return self
 
@@ -75,7 +75,7 @@ class SyncWith(ABC):
         # __aexit__ should exist in pair with __aenter__ but never executed
         pass
 
-    @abstractmethod
+    #@abstractmethod
     def close(self):
         self.test_close = True
 
