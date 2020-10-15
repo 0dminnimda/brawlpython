@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from . import __version__, __name__
-from .typedefs import STRDICT
-from .cache_utils import somecachedmethod, iscorofunc
-from asyncio import ensure_future as ensure, gather
+import sys
+from asyncio import ensure_future as ensure
+from asyncio import gather
 from collections.abc import ByteString, Collection, Mapping, Sized
 from functools import update_wrapper
-import sys
-from typing import Dict, Union
+from typing import Dict, List, Union
+
+from . import __name__, __version__
+from .cache_utils import iscorofunc, somecachedmethod
+from .typedefs import DICT_STR
 
 __all__ = (
     "DEFAULT_HEADERS",
@@ -41,7 +43,7 @@ DEFAULT_HEADERS = {
     "pragma": "no-cache"}
 
 
-def make_headers(api_key: str) -> STRDICT:
+def make_headers(api_key: str) -> DICT_STR:
     return {"authorization": f"Bearer {api_key}"}
 
 
@@ -83,7 +85,7 @@ def same(elements):
 
 def unique(x):
     seen = list()
-    return not any(i in seen or seen.append(i) for i in x)
+    return not any(i in seen or seen.append(i) for i in x)  # type: ignore
 
 
 def prepare_param(param, lengths):
@@ -98,7 +100,7 @@ def prepare_param(param, lengths):
 
 
 def check_params(args, kwargs):
-    lengths = []
+    lengths: List[int] = []
 
     args = [prepare_param(param, lengths) for param in args]
 
