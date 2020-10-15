@@ -23,7 +23,7 @@ class AbcAsyncInit(ABC):
 
     __slots__ = ()
 
-    async def __new__(cls, *args, **kwargs) -> "AsyncInitObject":
+    async def __new__(cls, *args, **kwargs) -> "AbcAsyncInit":  # type: ignore
         instance = super().__new__(cls)
         await instance.__init__(*args, **kwargs)
         return instance
@@ -46,7 +46,7 @@ class AbcAsyncWith(ABC):
         # __exit__ should exist in pair with __enter__ but never executed
         pass
 
-    async def __aenter__(self) -> "AsyncWith":
+    async def __aenter__(self) -> "AbcAsyncWith":
         return self
 
     async def __aexit__(self,
@@ -63,7 +63,7 @@ class AbcAsyncWith(ABC):
 class AbcSyncWith(ABC):
     __slots__ = ()
 
-    def __enter__(self) -> "SyncWith":
+    def __enter__(self) -> "AbcSyncWith":
         return self
 
     def __exit__(self,
@@ -120,14 +120,6 @@ class AbcResponse(ABC):
         ...
 
 
-class AbcCycle(ABC):
-    __slots__ = ()
-
-    @abstractmethod
-    def run(self):
-        ...
-
-
 class AbcCollector(ABC):
     __slots__ = ()
 
@@ -157,4 +149,12 @@ class AbcCollector(ABC):
 
     @abstractmethod
     def get_responses(self):
+        ...
+
+
+class AbcCycle(ABC):
+    __slots__ = ()
+
+    @abstractmethod
+    def run(self, collector):
         ...
