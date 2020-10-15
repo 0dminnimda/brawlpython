@@ -1,45 +1,27 @@
 # -*- coding: utf-8 -*-
 
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
 import asyncio
-from asyncio import ensure_future as ensure, gather
-from cachetools import TTLCache
-from collections import defaultdict, OrderedDict
+from asyncio import ensure_future as ensure
+from asyncio import gather
+from collections import OrderedDict, defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from functools import update_wrapper, partial
+from functools import partial, update_wrapper
+from typing import (Any, Callable, Coroutine, Dict, Generator, Generic,
+                    Iterable, List, Mapping, Optional, Set, Tuple, Type,
+                    TypeVar, Union)
+
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from cachetools import TTLCache
 from requests import Session
 
-from .api_toolkit import (
-    default_headers,
-    isrequiredcollection,
-    multiparams,
-    rearrange_params,
-    rearrange_args,
-    isliterals)
-from .base_classes import (AsyncInitObject, AsyncWith,
-                           SyncWith, DefaultOrderedDict, Mode)
-from .cache_utils import somecachedmethod, iscorofunc, NaN
+from .api_toolkit import (default_headers, isliterals, isrequiredcollection,
+                          multiparams, rearrange_args, rearrange_params)
+from .base_classes import (AsyncInitObject, AsyncWith, DefaultOrderedDict,
+                           Mode, SyncWith)
+from .cache_utils import NaN, iscorofunc, somecachedmethod
 from .exceptions import WITH_CODE, UnexpectedResponseCode
-from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS,
-                       NUMBER, BOOLS, STRJSON, AKW, STRBYTE)
-
-from typing import (
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    Generator,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from .typedefs import (AKW, ARGS, BOOLS, BOTH_JSON, JSONT, NUMBER, STRBYTE,
+                       STRJSON, STRS)
 
 try:
     import orjson as json
@@ -75,7 +57,7 @@ MODES = (DEFAULT, COLLECT, RELEASE)
 
 
 def _raise_for_status(self, url: str, code: int,
-                      data: Union[JSONTYPE, str]) -> None:
+                      data: Union[JSONT, str]) -> None:
 
     if isinstance(data, str):
         reason = "without a reason"
@@ -91,7 +73,7 @@ def _raise_for_status(self, url: str, code: int,
         raise UnexpectedResponseCode(url, code, reason, message)
 
 
-def _headers_handler(self, headers: JSONS) -> STRBYTE:
+def _headers_handler(self, headers: BOTH_JSON) -> STRBYTE:
     # TODO: use self._headers_dumps to not dumps twice
     if isrequiredcollection(headers):
         res = []
@@ -194,7 +176,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         return self._cached
 
     async def _basic_get(self, url: str,
-                         headers: JSONTYPE) -> Tuple[int, str]:
+                         headers: JSONT) -> Tuple[int, str]:
 
         async with self.session.get(url, headers=headers) as response:
             code = response.status
@@ -203,7 +185,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         return code, data
 
     async def _basic_cached_get(self, url: str,
-                                headers: JSONTYPE) -> Tuple[int, str]:
+                                headers: JSONT) -> Tuple[int, str]:
 
         get_key = self._cache.get(url, NaN)
         if get_key != NaN:
@@ -241,7 +223,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             else:
                 raise not_scheduled
 
-    async def _params_get(self, params: Tuple[ARGS]) -> JSONSEQ:
+    async def _params_get(self, params: Tuple[ARGS]) -> Sequence[JSONT]:
         tasks = [ensure(self._verified_json_get(*a)) for a in params]
         await gather(*tasks)
 
@@ -249,7 +231,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
         self._retry.extend(params)
 
     async def _retrying_get(
-            self, in_params: Iterable[ARGS] = None) -> List[JSONTYPE]:
+            self, in_params: Iterable[ARGS] = None) -> List[JSONT]:
 
         if in_params is None:
             in_params = tuple(self._retry)
@@ -283,7 +265,7 @@ class AsyncSession(AsyncInitObject, AsyncWith):
 
     async def _mode_dependent_get(
             self, params: Optional[Iterable[ARGS]] = None
-    ) -> Optional[List[JSONTYPE]]:
+    ) -> Optional[List[JSONT]]:
 
         if self.mode == RELEASE:
             return await self._retrying_get()
@@ -302,11 +284,11 @@ class AsyncSession(AsyncInitObject, AsyncWith):
             await self._extend_retry(params)
             return None
 
-    # async def get_params(self, params: Iterable[ARGS]) -> JSONSEQ:
+    # async def get_params(self, params: Iterable[ARGS]) -> Sequence[JSONT]:
     #     return await self._retrying_get(params)
 
     async def gets(self, urls: STRS, from_json: BOOLS = True,
-                   headers: JSONS = {}) -> JSONSEQ:
+                   headers: BOTH_JSON = {}) -> Sequence[JSONT]:
 
         params = rearrange_args(
             urls, from_json, self.headers_handler(headers))
@@ -378,11 +360,11 @@ class SyncSession(SyncWith):
     #_gets = retry_to_get_data(mix_all_gets(True)(_simple_get))
 
     def get(self, url: str, from_json: bool = True,
-            headers: JSONTYPE = {}) -> JSONTYPE:
+            headers: JSONT = {}) -> JSONT:
         return self._get(url, from_json=from_json,
                          headers=headers_handler(self, headers))[0]
 
     def gets(self, urls: STRS, from_json: BOOLS = True,
-             headers: JSONS = {}) -> JSONSEQ:
+             headers: BOTH_JSON = {}) -> Sequence[JSONT]:
         return self._gets(urls, from_json=from_json,
                           headers=headers_handler(self, headers))
