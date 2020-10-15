@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from .api_toolkit import make_headers
-from .typedefs import STRDICT
+from .typedefs import DICT_STR, MAPPING_STR
 
 from pyformatting import defaultformatter
 from typing import Any, Dict, Optional, Union
@@ -27,7 +27,7 @@ class API:
 
     __slots__ = "base", "endpoints", "hashtag", "headers"
 
-    def __init__(self, base: str, endpoints: STRDICT = {},
+    def __init__(self, base: str, endpoints: MAPPING_STR = {},
                  hashtag: bool = True) -> None:
 
         http = base.startswith("http://")
@@ -42,12 +42,12 @@ class API:
             base += "/"
 
         self.base = base
-        self.headers = {}
-        self.endpoints = {}
+        self.headers: DICT_STR = {}
+        self.endpoints: MAPPING_STR = {}
         self.append(endpoints)
         self.hashtag = hashtag
 
-    def append(self, endpoints: STRDICT) -> None:
+    def append(self, endpoints: DICT_STR) -> None:
         for name, path in endpoints.items():
             if name == "base":
                 raise ValueError("names must be not 'base'")
