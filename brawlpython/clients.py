@@ -1,40 +1,21 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-
-from .api import (
-    default_api_dict, API, KINDS, KIND_VALS, KIND_KEYS,
-    OFFIC, CHI, STAR, OFFICS, UNOFFICS,
-)
-from .api_toolkit import rearrange_params, _rearrange_args
-from .base_classes import AsyncInitObject, AsyncWith, SyncWith
-from .cache_utils import iscorofunc
-from .sessions import Session  # , SyncSession
-
+import time
 from configparser import ConfigParser
 from functools import update_wrapper
 from types import TracebackType
-from typing import (
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    Generator,
-    Iterable,
-    Generic,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
-from .typedefs import (STRS, BOTH_JSON, HANDLER,
-                       NUMBER, INTSTR, BOOLS, DICT_STR, AKW)
-import time
+from typing import (Any, Callable, Coroutine, Dict, Generator, Generic,
+                    Iterable, List, Mapping, Optional, Sequence, Set, Tuple,
+                    Type, TypeVar, Union)
+
+from .api import (API, CHI, KIND_KEYS, KIND_VALS, KINDS, OFFIC, OFFICS, STAR,
+                  UNOFFICS, default_api_dict)
+from .api_toolkit import _rearrange_args, rearrange_params
+from .base_classes import AsyncInitObject, AsyncWith, SyncWith
+from .sessions import Session  # , SyncSession
+from .typedefs import (AKW, BOOLS, BOTH_JSON, DICT_STR, HANDLER, INTSTR, JSONT,
+                       NUMBER, STRS)
 
 __all__ = (
     "AsyncClient",

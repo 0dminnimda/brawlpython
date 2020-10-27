@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from .api_toolkit import make_headers
-from .typedefs import DICT_STR, MAPPING_STR
+import urllib.parse as parse
+from typing import Any, Dict, Optional, Union
 
 from pyformatting import defaultformatter
-from typing import Any, Dict, Optional, Union
-import urllib.parse as parse
+
+from .api_toolkit import make_headers
+from .typedefs import DICT_STR
 
 __all__ = (
     "API",

@@ -1,36 +1,20 @@
 # -*- coding: utf-8 -*-
 
 
-from aiohttp import ClientSession, TCPConnector, ClientTimeout, ClientResponse
-from asyncio import (get_event_loop, sleep, gather, ensure_future,
-                     AbstractEventLoop, wait)
+from asyncio import (AbstractEventLoop, ensure_future, gather, get_event_loop,
+                     sleep, wait)
+from typing import (Any, Callable, Container, Coroutine, Dict, Generator,
+                    Generic, Iterable, Iterator, List, Mapping, Optional, Set,
+                    Tuple, Type, TypeVar, Union, Sequence)
 
-from typing import (
-    Any,
-    Container,
-    Callable,
-    Coroutine,
-    Dict,
-    Generator,
-    Generic,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union)
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
 
-from .abc import (AbcSession, AbcAsyncInit, AbcAsyncWith, AbcRequest,
-                  AbcResponse, AbcCycle, AbcCollector)
+from .abc import AbcAsyncInit, AbcAsyncWith
 from .api_toolkit import DEFAULT_HEADERS, rearrange_args
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .helpers import json
-from .typedefs import (STRS, JSONSEQ, JSONTYPE, JSONS, ARGS, NUMBER, BOOLS,
-                       STRJSON, AKW, STRBYTE, REQRESP)
+from .typedefs import (AKW, ARGS, BOOLS, BOTH_JSON, JSONT, NUMBER, REQRESP,
+                       STRBYTE, STRJSON, STRS)
 
 __all__ = (
     "Session",
