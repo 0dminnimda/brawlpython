@@ -8,7 +8,7 @@ from functools import update_wrapper
 from typing import Dict, List, Union
 
 from . import __name__, __version__
-from .cache_utils import iscorofunc, somecachedmethod
+from .cache_utils import iscorofunc
 from .typedefs import DICT_STR
 
 __all__ = (
