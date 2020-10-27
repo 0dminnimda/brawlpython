@@ -24,8 +24,8 @@ __all__ = (
     "HANDLER")
 
 # SEE: https://github.com/python/typing/issues/182
-JSONV = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-JSONT = Union[Dict[str, JSONV], List[JSONV]]
+JSONV = Any  # Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
+JSONT = Dict[str, JSONV]  # Union[Dict[str, JSONV], List[JSONV]]
 BOTH_JSON = Union[JSONT, Sequence[JSONT]]  # FIXME: better not to use this
 STRJSON = Union[str, JSONT]
 
