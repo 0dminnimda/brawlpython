@@ -24,7 +24,7 @@ __all__ = (
     "DEFAULT")
 
 
-class Response(AbcResponse):
+class Response:
     __slots__ = "url", "code", "text"
 
     def __init__(self, url: str, code: int, text: str) -> None:
@@ -69,20 +69,20 @@ class Response(AbcResponse):
             raise UnexpectedResponseCode(self.code, self.url, message)
 
 
-class Request(AbcRequest):
+class Request:
     __slots__ = "url", "_session", "_response_class", "_headers"
     # "hashable_headers")
 
-    def __init__(self, url: str, session: AbcSession,
-                 response_class: AbcResponse = Response,
-                 headers: JSONTYPE = {}) -> None:
+    def __init__(self, url: str, session: Session,
+                 response_class: Type[Response] = Response,
+                 headers: JSONT = {}) -> None:
         self.url = url
         self._session = session
         self._response_class = response_class
         self._headers = headers
         # self._hashable_headers = json.dumps(headers)
 
-    async def send(self) -> AbcResponse:
+    async def send(self) -> Response:
         async with self._session.get(self.url, headers=self._headers) as resp:
             response = self._response_class(
                 self.url, resp.status, await resp.text())
@@ -90,7 +90,7 @@ class Request(AbcRequest):
         return response
 
 
-class Collector(AbcCollector):
+class Collector:
     __slots__ = "_reqresps"
 
     def __init__(self) -> None:
@@ -112,14 +112,14 @@ class Collector(AbcCollector):
     def clear(self) -> None:
         self._reqresps.clear()
 
-    def append_request(self, request: AbcRequest) -> None:
+    def append_request(self, request: Request) -> None:
         self._reqresps.append([request, None])
 
-    def get_responses(self) -> List[Optional[AbcResponse]]:
+    def get_responses(self) -> List[Optional[Response]]:
         return [resp for req, resp in self]
 
 
-class AttemptCycle(AbcCycle):
+class AttemptCycle:
     def __init__(self, repeat_failed: int = 3,
                  success_codes: Container[int] = (200,)) -> None:
 
@@ -130,8 +130,8 @@ class AttemptCycle(AbcCycle):
         self._attempts = range(repeat_failed, -1, -1)
         self._success_codes = success_codes
 
-    async def _reqresp_handler(self, collector: AbcCollector, attempt: int,
-                               i: int, req: AbcRequest, resp: AbcResponse):
+    async def _reqresp_handler(self, collector: Collector, attempt: int,
+                               i: int, req: Request, resp: Response):
 
         # recent attempts with this req have been unsuccessful
         if resp is None:
@@ -146,7 +146,7 @@ class AttemptCycle(AbcCycle):
             else:
                 self._failure_counter += 1
 
-    async def run(self, collector: AbcCollector):
+    async def run(self, collector: Collector) -> List[Response]:
         if len(self._attempts) == 0:
             raise RuntimeError("self._attempts attribute was changed"
                                " causing it to work incorrectly")
@@ -173,18 +173,19 @@ DEFAULT = "default"
 DEFAULT_CYCLE = AttemptCycle(repeat_failed=3, success_codes=(200,))
 
 
-class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
+class Session(AbcAsyncInit, AbcAsyncWith):
 
     _mode = DEFAULT
     _collectors = []
 
-    async def __init__(self, timeout: NUMBER = 30,
-                       trust_env: bool = True,
-                       loop: Optional[AbstractEventLoop] = None,
-                       cycle: Optional[AbcCycle] = None,
-                       request_class: AbcRequest = Request,
-                       response_class: AbcResponse = Response,
-                       collector_class: AbcCollector = Collector) -> None:
+    async def __init__(  # type: ignore
+            self, timeout: NUMBER = 30,
+            trust_env: bool = True,
+            loop: Optional[AbstractEventLoop] = None,
+            cycle: Optional[Cycle] = None,
+            request_class: Type[Request] = Request,
+            response_class: Type[Response] = Response,
+            collector_class: Type[Collector] = Collector) -> None:
 
         if loop is None:
             loop = get_event_loop()
