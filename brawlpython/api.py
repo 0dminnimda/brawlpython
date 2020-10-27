@@ -28,7 +28,7 @@ class API:
 
     __slots__ = "base", "endpoints", "hashtag", "headers"
 
-    def __init__(self, base: str, endpoints: MAPPING_STR = {},
+    def __init__(self, base: str, endpoints: DICT_STR = {},
                  hashtag: bool = True) -> None:
 
         http = base.startswith("http://")
@@ -44,7 +44,7 @@ class API:
 
         self.base = base
         self.headers: DICT_STR = {}
-        self.endpoints: MAPPING_STR = {}
+        self.endpoints: DICT_STR = {}
         self.append(endpoints)
         self.hashtag = hashtag
 
