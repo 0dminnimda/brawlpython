@@ -32,7 +32,7 @@ class Response(AbcResponse):
         self.code = code
         self.text = text
 
-    def json(self, default: Any = None) -> Optional[JSONTYPE]:
+    def json(self, default: Any = None) -> Optional[JSONT]:
         stripped = self.text.strip()
         if not stripped:
             return default
@@ -164,6 +164,8 @@ class AttemptCycle(AbcCycle):
             if self._failure_counter == 0:
                 return collector.get_responses()
 
+        raise RuntimeError("While running nothing happend (raise or return)")
+
 
 COLLECT = "collect"
 DEFAULT = "default"
@@ -239,7 +241,7 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
         raise RuntimeError(f"release called when mode == {DEFAULT}")
 
     async def get(self, url: str,
-                  headers: JSONTYPE = {}) -> Optional[JSONTYPE]:
+                  headers: JSONT = {}) -> Optional[JSONT]:
 
         req = self._request_class(url, session=self._session,
                                   response_class=self._response_class,
@@ -252,7 +254,9 @@ class Session(AbcSession, AbcAsyncInit, AbcAsyncWith):
             self._collectors[-1].append_request(req)
             return (await self.release())[0]
 
-    async def gets(self, url: str, headers: JSONSEQ = {}):
+    async def gets(self, url: str,
+                   headers: Sequence[JSONT] = {}) -> Optional[Sequence[JSONT]]:
+
         params = rearrange_args(url, headers)
 
         if self.mode == COLLECT:
