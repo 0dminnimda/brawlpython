@@ -18,7 +18,6 @@ from .api_toolkit import (default_headers, isliterals, isrequiredcollection,
                           multiparams, rearrange_args, rearrange_params)
 from .base_classes import (AsyncInitObject, AsyncWith, DefaultOrderedDict,
                            Mode, SyncWith)
-from .cache_utils import NaN, iscorofunc, somecachedmethod
 from .exceptions import WITH_CODE, UnexpectedResponseCode
 from .typedefs import (AKW, ARGS, BOOLS, BOTH_JSON, JSONT, NUMBER, STRBYTE,
                        STRJSON, STRS)
