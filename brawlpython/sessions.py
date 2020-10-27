@@ -250,6 +250,7 @@ class Session(AbcAsyncInit, AbcAsyncWith):
 
         if self.mode == COLLECT:
             self._collectors[-1].append_request(req)
+            return None
         else:
             self.collect()
             self._collectors[-1].append_request(req)
@@ -263,6 +264,7 @@ class Session(AbcAsyncInit, AbcAsyncWith):
         if self.mode == COLLECT:
             for a in params:
                 await self.get(*a)
+            return None
         else:
             self.collect()
             for a in params:
