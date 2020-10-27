@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-from cachetools import keys, Cache
-from functools import wraps, partial, update_wrapper
+from functools import partial, update_wrapper, wraps
+
+from cachetools import Cache, keys
 
 __all__ = (
     "NaN",

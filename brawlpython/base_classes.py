@@ -4,7 +4,7 @@ from abc import ABC
 from collections import OrderedDict, defaultdict
 from reprlib import recursive_repr
 from types import TracebackType
-from typing import Any, Optional, Type, TypeVar, Collection
+from typing import Any, Collection, Optional, Type, TypeVar
 
 __all__ = (
     "AsyncInitObject",
