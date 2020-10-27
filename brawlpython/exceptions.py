@@ -26,6 +26,8 @@ class ClientException(BrawlPythonException):
 class ClientResponseError(ClientException):
     """Connection error during reading response."""
 
+    code: int = 0
+
     def __init__(self, url: str, message: str = "no message") -> None:
         self.url = url
         self.message = message
@@ -59,8 +61,6 @@ class ExpectedResponseCode(ClientResponseError):
     """Occurs if the response code was described
     in the official api documentation.
     """
-
-    code = None
 
 
 class BadRequest(ExpectedResponseCode):
