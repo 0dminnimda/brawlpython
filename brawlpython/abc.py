@@ -99,6 +99,14 @@ class AbcSession(ABC):
     def closed(self):
         ...
 
+    @abstractmethod
+    def gets(self):
+        ...
+
+    @abstractmethod
+    def get(self):
+        ...
+
 
 class AbcRequest(ABC):
     __slots__ = ()
