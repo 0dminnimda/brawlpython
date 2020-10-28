@@ -5,9 +5,8 @@ __name__ = "brawlpython"
 
 
 from .api import API
-from .clients import AsyncClient  # , SyncClient
+from .clients import Client
 
 __all__ = (
-    "AsyncClient",
-    # "SyncClient",
+    "Client",
     "API")
