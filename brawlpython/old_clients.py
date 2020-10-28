@@ -1,0 +1,465 @@
+# -*- coding: utf-8 -*-
+
+import asyncio
+import time
+from configparser import ConfigParser
+from functools import update_wrapper
+from types import TracebackType
+from typing import (Any, Callable, Coroutine, Dict, Generator, Generic,
+                    Iterable, List, Mapping, Optional, Sequence, Set, Tuple,
+                    Type, TypeVar, Union)
+
+from .api import (API, CHI, KIND_KEYS, KIND_VALS, KINDS, OFFIC, OFFICS, STAR,
+                  UNOFFICS, default_api_dict)
+from .api_toolkit import _rearrange_args, rearrange_params
+from .base_classes import AsyncInitObject, AsyncWith, SyncWith
+from .sessions import Session  # , SyncSession
+from .typedefs import (AKW, BOOLS, BOTH_JSON, DICT_STR, HANDLER, INTSTR, JSONT,
+                       NUMBER, STRS)
+
+__all__ = (
+    "AsyncClient",
+    "SyncClient",
+    "offic_gets_handler",
+    "star_gets_handler",
+    "gets_handler")
+
+
+COLLECT = "collect"
+RELEASE = "release"
+DEFAULT = "default"
+
+
+def offic_gets_handler(data_list: Sequence[JSONT]) -> Sequence[JSONT]:
+    results = []
+    for data in data_list:
+        get_items = data.get("items")
+        if get_items is not None and isinstance(get_items, list):
+            results.append(get_items)
+        else:
+            results.append(data)
+    return results
+
+
+def star_gets_handler(data_list: Sequence[JSONT]) -> Sequence[JSONT]:
+    results = []
+    for data in data_list:
+        data.pop("status", None)
+        if len(data) == 1:
+            results += list(data.values())
+        else:
+            results.append(data)
+    return results
+
+
+def gets_handler(self, data_list: Sequence[JSONT]) -> Sequence[JSONT]:
+    name = self._current_api
+    if name in OFFICS:
+        res = offic_gets_handler(data_list)
+    elif name == STAR:
+        res = star_gets_handler(data_list)
+    else:
+        res = data_list
+
+    if self._return_unit and len(res) == 1:
+        return res[0]
+
+    return res
+
+
+def _find_save(self, kind: str, match: INTSTR,
+               parameter: str = None) -> Optional[BOTH_JSON]:
+    collectable = self._saves[kind]
+    count = len(collectable)
+
+    if isinstance(match, int):
+        if -count <= match < count:
+            return collectable[match]
+    elif isinstance(match, str):
+        match = match.upper()
+
+    if parameter is None:
+        for part in collectable:
+            if match in part.values():
+                return part
+    else:
+        for part in collectable:
+            if part.get(parameter) == match:
+                return part
+
+    return None  # returns explicitly
+
+
+def _rankings(self, kind: str, api: str,
+              key: Optional[INTSTR] = None,
+              code: str = "global",
+              limit: INTSTR = 200) -> BOTH_JSON:
+
+    if kind in KIND_KEYS:
+        kind = KINDS[kind]
+
+    if kind == KINDS["b"]:
+        if key is None:
+            raise ValueError(
+                "If the kind is b or brawlers, the key must be entered")
+
+        brawler = self.find_save("b", key)
+        if brawler is not None:
+            key = brawler["id"]
+    elif kind == KINDS["ps"]:
+        if key is None:
+            key = -1
+
+        powerplay = self.find_save("ps", key)
+        if powerplay is not None:
+            key = powerplay["id"]
+
+    if key is None:
+        key = ""
+
+    return ("rankings",), {"code": code, "kind": kind,
+                           "id": key, "limit": limit}
+
+
+def get_and_apply_api_keys(filename: str, section: str,
+                           api_dict: Dict[str, API]) -> None:
+    if filename.endswith(".env"):
+        raise ValueError("this file extension is not accepted")
+
+    # if filename.endswith(".ini"):
+    config = ConfigParser()
+    config.read(filename)
+    config = config[section]
+
+    for name, api in api_dict.items():
+        if name in OFFICS:
+            name = OFFIC
+
+        api_key = config.get(name + "_api_key")
+        api.set_api_key(api_key)
+
+
+class AsyncClient(AsyncInitObject, AsyncWith):
+    _gets_handler = gets_handler
+
+    async def __init__(
+            self,  # api_keys: Union[str, DICT_STR],
+            config_file_name: str = "config.ini",
+            section: str = "DEFAULT",
+            api_dict: Dict[str, API] = {},
+            default_api: str = OFFIC,
+            return_unit: bool = True,
+            min_update_time: NUMBER = 60 * 10,
+            data_handler: HANDLER = gets_handler,
+
+            trust_env: bool = True,
+            cache_ttl: NUMBER = 60,
+            cache_limit: int = 1024,
+            use_cache: bool = True,
+            timeout: NUMBER = 30,
+            repeat_failed: int = 3) -> None:
+
+        self.session = await Session(
+            # trust_env=trust_env, cache_ttl=cache_ttl,
+            # cache_limit=cache_limit, use_cache=use_cache,
+            # timeout=timeout, repeat_failed=repeat_failed
+        )
+
+        self.api_dict = {**default_api_dict, **api_dict}
+        get_and_apply_api_keys(config_file_name, section, self.api_dict)
+        self._current_api = self._default_api = default_api
+
+        self._return_unit = return_unit
+        self._gets_handler = data_handler
+        self._requests = []
+        self._mode = DEFAULT
+
+        self._saves = {}
+        self._min_update_time = min_update_time
+        # await self.update_saves(True)
+
+    async def close(self) -> None:
+        """Close session"""
+        await self.session.close()
+
+    @property
+    def closed(self) -> bool:
+        """Is client session closed.
+        A readonly property.
+        """
+        return self.session.closed
+
+    async def _gets(self, from_json, *args) -> Sequence[JSONT]:
+        # not_collect =
+
+        resps = await self.session.gets(*args)
+        if from_json:
+            for i, resp in enumerate(resps):
+                resps[i] = resp.json(resp.text)
+        else:
+            for i, resp in enumerate(resps):
+                resps[i] = resp.text
+        if self.session.mode != COLLECT:
+            return self._gets_handler(self, resps)
+        if self.session.mode == RELEASE:
+            return resps  # None
+
+    def _get_api(self, api: str):
+        return self.api_dict[api]
+
+    async def _fetchs(self, paths: STRS, api_names: str,
+                      from_json: BOOLS = True, rearrange: bool = True,
+                      **kwargs) -> BOTH_JSON:
+
+        if rearrange:
+            urls = []
+            headers = []
+            pars = rearrange_params(api_names, paths, **kwargs)
+
+            for (api_name, *a), kw in pars:
+                api = self._get_api(api_name)
+
+                urls.append(api.make_url(*a, **kw))
+                headers.append(
+                    (api.headers))  # self.session.headers_handler
+        else:
+            api = self._get_api(api_names)
+
+            urls = api.make_url(paths, **kwargs)
+            # headers = self.session.headers_handler(api.headers)
+
+        return await self._gets(from_json, urls, headers)
+
+    def collect(self):
+        self.session.collect()
+
+    async def release(self):
+        return self._gets_handler(await self.session.release())
+
+    # @add_api_name(None)
+    async def test_fetch(self, *args, **kwargs):
+        return await self._fetchs(*args, **kwargs)
+
+    async def players(self, tag: str, api: str = OFFIC) -> BOTH_JSON:
+        return await self._fetchs("players", api, tag=tag)
+
+    async def battlelog(self, tag: str, api: str = OFFIC) -> BOTH_JSON:
+        return await self._fetchs("battlelog", api, tag=tag)
+
+    async def clubs(self, tag: str, api: str = OFFIC) -> BOTH_JSON:
+        return await self._fetchs("clubs", api, tag=tag)
+
+    async def members(self, tag: str, limit: INTSTR = 100,
+                      api: str = OFFIC) -> BOTH_JSON:
+        return await self._fetchs("members", api, tag=tag, limit=limit)
+
+    async def rankings(self, kind: str,
+                       key: Optional[INTSTR] = None,
+                       code: str = "global",
+                       limit: INTSTR = 200,
+                       api: str = OFFIC) -> BOTH_JSON:
+
+        pars = rearrange_params(kind, api, key=key, code=code, limit=limit)
+
+        self.collect()
+        for args, kwargs in pars:
+            a, kw = _rankings(self, *args, **kwargs)
+            await self._fetchs(*a, rearrange=False, **kw)
+
+        return await self.release()
+
+    async def brawlers(self, id: INTSTR = "", limit: Optional[INTSTR] = None,
+                       api: str = OFFIC) -> BOTH_JSON:
+        return await self._fetchs("brawlers", api, id=id, limit=limit)
+
+    async def powerplay(self, code: str = "global", limit: int = 200,
+                        api: str = OFFIC) -> BOTH_JSON:
+        return await self._fetchs("rankings", api, code=code, limit=limit,
+                                  kind=KINDS["ps"])
+
+    async def events(self, api: str = STAR) -> BOTH_JSON:
+        return await self._fetchs("events", api)
+
+    async def icons(self, api: str = STAR) -> BOTH_JSON:
+        return await self._fetchs("icons", api)
+
+    async def maps(self, id: INTSTR = "", api: str = STAR) -> BOTH_JSON:
+        return await self._fetchs("maps", api, id=id)
+
+    async def gamemodes(self, api: str = STAR) -> BOTH_JSON:
+        return await self._fetchs("gamemodes", api)
+
+    async def clublog(self, tag: str, api: str = STAR) -> BOTH_JSON:
+        return await self._fetchs("clublog", api, tag=tag)
+
+    async def translations(self, code: str = "", api: str = STAR) -> BOTH_JSON:
+        return await self._fetchs("translations", api, code=code)
+
+    # TODO: api rearrange
+    async def update_saves(self, now: bool = False, api: str = OFFIC) -> None:
+        if now or time.time() - self._last_update >= self._min_update_time:
+            self.collect()
+            await self.brawlers(api=api)
+            await self.powerplay(api=api)
+            b, ps = await self.release()
+            self._saves.update({"b": b, "ps": ps})
+            self._last_update = time.time()
+
+    find_save = _find_save
+
+
+# class SyncClient(SyncWith):
+#     def __init__(
+#             self, api_keys: Union[str, DICT_STR],
+#             api_dict: Dict[str, API] = {},
+#             # default_api: str = OFFIC,
+#             return_unit: bool = True,
+#             min_update_time: NUMBER = 60 * 10,
+#             data_handler: HANDLER = gets_handler,
+
+#             trust_env: bool = True,
+#             cache_ttl: NUMBER = 60,
+#             cache_limit: int = 1024,
+#             use_cache: bool = True,
+#             timeout: NUMBER = 30,
+#             repeat_failed: int = 3) -> None:
+
+#         self.session = SyncSession(
+#             trust_env=trust_env, cache_ttl=cache_ttl,
+#             cache_limit=cache_limit, use_cache=use_cache,
+#             timeout=timeout, repeat_failed=repeat_failed
+#         )
+#         self.api_dict = {**default_api_dict, **api_dict}
+#         # self._current_api = self._default_api = default_api
+
+#         if isinstance(api_keys, str):
+#             self.api_dict[default_api].set_api_key(api_keys)
+#         else:
+#             for name, api_key in api_keys.items():
+#                 self.api_dict[name].set_api_key(api_key)
+
+#         self._return_unit = return_unit
+#         self._gets_handler = data_handler
+
+#         self._saves = {}
+#         self._min_update_time = min_update_time
+#         self.update_saves(True)
+
+#     def close(self) -> None:
+#         """Close session"""
+#         self.session.close()
+
+#     @property
+#     def closed(self) -> bool:
+#         """Is client session closed.
+#         A readonly property.
+#         """
+#         return self.session.closed
+
+#     def _gets(self, *args: Any, **kwargs: Any) -> Sequence[JSONT]:
+#         resps = self.session.gets(*args, **kwargs)
+#         return self._gets_handler(self, resps)
+
+#     def _get_api(self):
+#         if self._current_api is None:
+#             self._current_api = self._default_api
+
+#         return self.api_dict[self._current_api]
+
+#     def _fetch(self, path: str, from_json: bool = True,
+#                **kwargs: Any) -> BOTH_JSON:
+
+#         api = self._get_api()
+
+#         return self._gets(
+#             api.get(path, **kwargs), headers=api.headers,
+#                 from_json=from_json)
+
+#     def _fetchs(self, paths: Union[STRS, AKW], from_json: BOOLS = True,
+#                 rearrange: bool = True, **kwargs: Any) -> BOTH_JSON:
+
+#         api = self._get_api()
+
+#         if rearrange:
+#             pars = rearrange_params(paths, **kwargs)
+#         else:
+#             pars = paths
+#         urls = [api.get(*a, **kw) for a, kw in pars]
+
+#         return self._gets(urls, headers=api.headers, from_json=from_json)
+
+#     # @add_api_name(None)
+#     def test_fetch(self, *args, **kwargs):
+#         return self._fetchs(*args, **kwargs)
+
+#     # @add_api_name(OFFIC)
+#     def players(self, tag: str) -> BOTH_JSON:
+#         return self._fetchs("players", tag=tag)
+
+#     # @add_api_name(OFFIC)
+#     def battlelog(self, tag: str) -> BOTH_JSON:
+#         return self._fetchs("battlelog", tag=tag)
+
+#     # @add_api_name(OFFIC)
+#     def clubs(self, tag: str) -> BOTH_JSON:
+#         return self._fetchs("clubs", tag=tag)
+
+#     # @add_api_name(OFFIC)
+#     def members(self, tag: str, limit: INTSTR = 100) -> BOTH_JSON:
+#         return self._fetchs("members", tag=tag, limit=limit)
+
+#     # @add_api_name(OFFIC)
+#     def rankings(self, kind: str,
+#                  key: Optional[INTSTR] = None,
+#                  code: str = "global",
+#                  limit: INTSTR = 200) -> BOTH_JSON:
+#         pars = rearrange_params(
+#             kind, key=key, code=code, limit=limit)
+
+#         return self._fetchs(
+#             [_rankings(self, *a, **kw) for a, kw in pars], rearrange=False)
+
+#     # @add_api_name(OFFIC)
+#     def brawlers(self, id: INTSTR = "",
+#                  limit: INTSTR = "") -> BOTH_JSON:
+#         return self._fetchs("brawlers", id=id, limit=limit)
+
+#     # @add_api_name(OFFIC)
+#     def powerplay(self, code: str = "global", limit: int = 200) -> BOTH_JSON:
+#         return self._fetchs("rankings", code=code, limit=limit,
+#                             kind=KINDS["ps"], id="")
+
+#     # @add_api_name(STAR)
+#     def events(self) -> BOTH_JSON:
+#         return self._fetchs("events")
+
+#     # @add_api_name(STAR)
+#     def icons(self) -> BOTH_JSON:
+#         return self._fetchs("icons")
+
+#     # @add_api_name(STAR)
+#     async def maps(self, id: INTSTR = "") -> BOTH_JSON:
+#         return self._fetchs("maps", id=id)
+
+#     # @add_api_name(STAR)
+#     def gamemodes(self) -> BOTH_JSON:
+#         return self._fetchs("gamemodes")
+
+#     # @add_api_name(STAR)
+#     def clublog(self, tag: str) -> BOTH_JSON:
+#         return self._fetchs("clublog", tag=tag)
+
+#     # @add_api_name(STAR)
+#     def translations(self, code: str = "") -> BOTH_JSON:
+#         return self._fetchs("translations", code=code)
+
+#     # @add_api_name(OFFIC)
+#     def update_saves(self, now: bool = False) -> None:
+#         if now or time.time() - self._last_update >= self._min_update_time:
+#             self._saves.update({
+#                 "b": self.brawlers(api=self._current_api),
+#                 "ps": self.powerplay(api=self._current_api)
+#             })
+#             self._last_update = time.time()
+
+#     find_save = _find_save
