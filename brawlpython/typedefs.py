@@ -20,8 +20,8 @@ __all__ = (
     "STRBYTE",
     "ARGS",
     "AKW",
-    "REQRESP",
-    "HANDLER")
+    "HANDLER"
+    "REQRESP")
 
 # SEE: https://github.com/python/typing/issues/182
 JSONV = Any  # Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
@@ -43,4 +43,4 @@ ARGS = Sequence[Any]
 AKW = Tuple[ARGS, Mapping[str, Any]]
 
 HANDLER = Callable[["AsyncClient", Sequence[JSONT]], Sequence[JSONT]]
-REQRESP = Tuple[Optional[AbcRequest], Optional[AbcResponse]]
+REQRESP = List[Optional[Union["Request", "Response"]]]
